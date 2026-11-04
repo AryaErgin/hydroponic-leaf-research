@@ -1,0 +1,7 @@
+# Local web/Firebase evaluation only; no model runtime or checkpoint download.
+-r requirements-firebase-preview.txt
+-r requirements-web-test.txt
+pytest==9.1.1
+requests==2.34.2
+# Match the qualified web runtime rather than resolving a newer native core.
+pydantic==2.13.5

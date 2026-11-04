@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "species": "rumex_acetosa",
+  "measurement_target": "visible_projected_plant_foreground",
+  "validation": {"status": "unvalidated", "evidence_id": null},
+  "color": null,
+  "seed_color": null
+}

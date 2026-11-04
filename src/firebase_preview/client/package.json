@@ -1,0 +1,1 @@
+{"private":true,"description":"Local Firebase client proof; no framework rewrite","dependencies":{"firebase":"13.1.0","esbuild":"0.28.2"}}

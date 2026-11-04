@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "acquisition_id": "hydroponic_unvalidated",
+  "validation": {
+    "status": "unvalidated",
+    "evidence_id": null
+  },
+  "longitudinal": {
+    "stable_geometry_validated": false,
+    "geometry_validation_id": null
+  },
+  "roi": {
+    "working_size_px": 384,
+    "buffer_min_radius": 1,
+    "coherence_radius": 2,
+    "unsupported_anchor_weight": 0.1,
+    "anchor_min_pixels": 9,
+    "anchor_min_fraction": 0.0002,
+    "anchor_center_radius": 0.32,
+    "anchor_score_radius": 0.18,
+    "support_seed_min_pixels": 9,
+    "nearby_fragment_min_fraction": 0.005,
+    "envelope_margin": 0.02,
+    "fallback_radius": 0.48,
+    "local_edge_radius": 3,
+    "boundary_erosion_radius": 2,
+    "boundary_fraction_limit": 0.02
+  },
+  "background": {
+    "perimeter_band_fraction": 0.08,
+    "h_min": 10,
+    "h_max": 85,
+    "s_min": 30,
+    "normalized_exg_min": 0.08,
+    "green_fraction_threshold": 0.35,
+    "background_quantile": 0.95,
+    "contrast_margin": 0.03
+  },
+  "support": {
+    "median_radius": 1,
+    "closing_radius": 2,
+    "s_max": 55,
+    "v_max": 200,
+    "piece_min_fraction": 0.001,
+    "piece_max_fraction": 0.3,
+    "piece_max_span_fraction": 0.9,
+    "center_radius": 0.35,
+    "hull_min_fraction": 0.025,
+    "hull_max_fraction": 0.35,
+    "aspect_min": 0.45,
+    "aspect_max": 1.8,
+    "coverage_min": 0.08
+  },
+  "confidence": {
+    "supported": 0.95,
+    "contrast_fallback": 0.45,
+    "unlocalized": 0.25,
+    "boundary_cap": 0.4,
+    "dominance_for_full": 0.5
+  },
+  "qc": {
+    "threshold": 0.7,
+    "reference_mode": "self_consistency_exp003"
+  }
+}

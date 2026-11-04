@@ -1,0 +1,19 @@
+[extend]
+useDefault = true
+[[rules]]
+id = "firebase-password-signer-material"
+description = "Firebase password hashing signer key or salt separator material"
+regex = '''(?i)(?:signerKey|saltSeparator|signer_key|salt_separator)["'\s]*[:=]["'\s]*([A-Za-z0-9+/=_-]{12,})'''
+secretGroup = 1
+
+[[rules.allowlists]]
+description = "Exact intentional redaction-test sentinel, only in its diagnostic test module"
+condition = "AND"
+paths = ['''(?:^|[\\/])tests[\\/]test_firebase_diagnostics\.py$''']
+regexTarget = "secret"
+regexes = ['''^SYNTHETIC_SENSITIVE_VALUE$''']
+[[rules]]
+id = "server-secret-assignment"
+description = "Assigned server session or SMTP secret candidate"
+regex = '''(?i)(?:SESSION_SECRET|SMTP_PASSWORD|CLIENT_SECRET|PRIVATE_KEY|SERVICE_ACCOUNT_KEY)["'\s]*[:=]["'\s]*([A-Za-z0-9+/=_-]{16,})'''
+secretGroup = 1

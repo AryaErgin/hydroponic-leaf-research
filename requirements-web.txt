@@ -1,0 +1,11 @@
+fastapi==0.143.0
+starlette==1.7.0
+uvicorn==0.54.0
+python-multipart==0.0.32
+SQLAlchemy==2.0.52
+psycopg[binary]==3.3.5
+google-cloud-storage==3.17.0
+google-cloud-firestore==2.34.1
+numpy==2.4.6
+Pillow==12.3.0
+pillow-heif==1.8.1

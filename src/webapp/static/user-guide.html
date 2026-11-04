@@ -1,0 +1,54 @@
+<!doctype html>
+<!-- Generated from docs/USER_GUIDE.md by scripts/build_user_guide.py. -->
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>User guide · Leaf Research</title><link rel="stylesheet" href="/science-static/user-guide.css"></head>
+<body><a class="skip-link" href="#guide">Skip to guide</a>
+<header><a class="brand" href="/analyze">Leaf Research</a><span>User guide</span></header>
+<div class="layout"><nav aria-label="Guide contents"><a class="return-link" href="/analyze">Open Analyze a plant</a><a href="#section-1">1. Select or add a plant</a>
+<a href="#section-2">2. Upload an overhead photo</a>
+<a href="#section-3">3. Calibrate the photo scale</a>
+<a href="#section-4">4. Analyze the photo</a>
+<a href="#section-5">5. Review and correct the colored leaves</a>
+<a href="#section-6">6. Approve the reviewed measurement</a>
+<a href="#section-7">7. View growth history and export</a>
+<a href="#section-8">How the area is measured</a>
+<a href="#section-9">Troubleshooting</a></nav>
+<main id="guide"><h1>How to use Leaf Research</h1>
+<p>Measure the visible leaf blades in an overhead photo. Keep this guide open in its own tab while you work.</p>
+<p>Photo → automatic detection → leaf masks → human review → pixel count → calibrated area → growth history.</p>
+<h2 id="section-1">1. Select or add a plant</h2>
+<p>Choose your plant, or tap + Add plant, enter a name, choose Lettuce or Sorrel (Rumex acetosa / kuzukulağı), and Save plant. Reuse this record later. Set the photo&#x27;s capture date.</p>
+<h2 id="section-2">2. Upload an overhead photo</h2>
+<p>Tap Upload photo to take or choose a JPEG, PNG or HEIC image. Photograph straight down with the whole plant and pot rim visible. Use even light and sharp focus; keep camera height, zoom, framing and pot position consistent.</p>
+<h2 id="section-3">3. Calibrate the photo scale</h2>
+<p>Enter the pot&#x27;s ruler-measured OUTER diameter in centimetres. Tap two opposite outside-rim points across the centre, then Save calibration. Use the outer rim, not the inner opening. Drag markers to correct them, or Undo last point / Redo points. Two fingers move or zoom.</p>
+<p>Reuse scale only for the same pot and unchanged camera height, zoom and framing. Confirm only when the setup matches the reference. Recalibrate after setup, diameter or crop changes, or when unsure; leaf edits and approved history are preserved. Retake tilted photos or cropped rims. Review leaves first (pixels only) allows review before setting scale.</p>
+<h2 id="section-4">4. Analyze the photo</h2>
+<p>Tap Analyze photo. Startup analysis may take 1–2 minutes, sometimes longer. Follow the progress message until the colored overlay appears. This automatic proposal still needs your review.</p>
+<h2 id="section-5">5. Review and correct the colored leaves</h2>
+<p>Compare boundaries and assignments with the original. Include pale or yellow blades; exclude stalks, stems, crown, pot and background. Do not paint hidden tissue. Open Edit tools; tap a leaf or use Selected leaf.</p>
+<ul>
+<li><strong>Split:</strong> Select a region containing two blades; draw a complete cut across it.</li>
+<li><strong>Merge:</strong> Select pieces belonging to one blade, then Merge selected leaves.</li>
+<li><strong>Reassign:</strong> Select the receiving leaf; paint existing lamina pixels to transfer them.</li>
+<li><strong>Add leaf:</strong> Paint a new visible blade, including unpainted areas the mask missed. Magenta previews the exact region; release to create the leaf, adding missed tissue and transferring painted assignments while leaving unpainted pixels unchanged.</li>
+<li><strong>Delete leaf:</strong> Removes its assignment, leaving lamina unassigned. Reassign it, Add leaf, or erase only confirmed non-blade tissue.</li>
+<li><strong>Paint lamina / Erase tissue:</strong> Add visible blade tissue or remove non-blade tissue; resolve unassigned lamina afterward.</li>
+<li><strong>Undo / Redo:</strong> Restore or reapply mask and assignment edits. Use two fingers to move or zoom without painting.</li>
+</ul>
+<h2 id="section-6">6. Approve the reviewed measurement</h2>
+<p>Check boundaries, leaves and scale. Read the checklist and displayed reason, confirm the review checkbox, then APPROVE MEASUREMENT. Human approval finalizes leaf count, per-leaf areas, total, mean and median. Drafts and automatic proposals are not approved.</p>
+<h2 id="section-7">7. View growth history and export</h2>
+<p>Select the plant to see approved Growth history. Graph metric switches between total area, leaf count, mean and median. Growth comparison shows changes; Export CSV downloads history. Compare consistent photos; older measurement targets may appear separately.</p>
+<h2 id="section-8">How the area is measured</h2>
+<p>Reviewed pixel count × (centimetres per pixel)² gives approximate square centimetres. Without verified scale, areas are pixels only. Calibration approximates scale at the pot-rim plane. This measures visible, projected leaf-blade (lamina) area, not true 3D surface area or hidden tissue. Curved, raised or overlapping leaves affect results. Validate against ground truth for your experiment.</p>
+<h2 id="section-9">Troubleshooting</h2>
+<ul>
+<li><strong>Slow startup:</strong> Follow progress. After an error, Resume unfinished review to check existing work before retrying.</li>
+<li><strong>Wrong scale:</strong> Check OUTER diameter, centimetres and opposite rim points; correct markers or recalibrate.</li>
+<li><strong>Wrong count:</strong> Inspect colored assignments; use Split, Merge, Reassign or Add leaf.</li>
+<li><strong>Cannot approve:</strong> Read the displayed reason; resolve unassigned tissue, scale confirmation or the review checkbox. After a saving error, check the recovered result before repeating approval.</li>
+<li><strong>Photo will not load:</strong> Use Retry photo; check format and connection, or choose a clearer overhead photo.</li>
+<li><strong>Account pending:</strong> Verify email when requested; institution approval is separate. After approval, sign in with your verified account. This public guide grants no institution-data access.</li>
+</ul><a class="return-link" href="#guide">Back to top</a></main></div>
+</body></html>

@@ -1,0 +1,2 @@
+# Isolated local evaluation; not installed into the serving scientific environment.
+firebase-admin==7.7.0

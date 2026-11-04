@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Visible lettuce mask review</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f5f4;color:#182c25;font:15px system-ui,sans-serif}
+header,footer{padding:12px 20px;background:white;border-bottom:1px solid #ccd9d1}
+h1{font-size:21px;margin:0 0 4px}.badge{background:#fff0c4;padding:3px 9px;border-radius:5px;font-size:13px}
+button,input{font:inherit}button{border:1px solid #91a69a;background:white;border-radius:5px;padding:7px 11px;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}button.active{background:#c3f0df;border-color:#186b50}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 20px;background:#e9f0ec}
+.toolbar label{display:flex;align-items:center;gap:5px}input[type=number]{width:65px}input[type=range]{width:120px}
+.viewers{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 20px}
+.viewer{min-width:0}.viewer h2{font-size:14px;margin:0 0 5px}
+.viewport{height:52vh;overflow:auto;background:#17251f;border:1px solid #91a69a;overscroll-behavior:contain}
+.stage{position:relative;line-height:0;touch-action:none}.stage img{width:100%;height:100%;display:block}
+canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;cursor:crosshair;touch-action:none}
+#original{display:block}#notes{margin:6px 0;color:#61471c;font-size:13px}#review{display:grid;grid-template-columns:1fr 1fr;gap:5px 18px;margin:8px 0}
+#review label{display:flex;align-items:start;gap:7px;font-size:13px}#review input{margin-top:3px}
+#approve{background:#186b50;color:white;font-weight:600}#status{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0;font-size:13px}
+#cursor{position:absolute;border:1px solid white;border-radius:50%;box-shadow:0 0 0 1px black;pointer-events:none;display:none}
+.actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.hint{font-size:13px;color:#52685b}
+@media(max-width:700px){.viewers{grid-template-columns:1fr}.viewer:first-child{display:none}#review{grid-template-columns:1fr}.viewport{height:48vh}}
+</style>
+<header>
+ <h1>Visible lettuce mask review <span id="badge" class="badge">UNREVIEWED CANDIDATE</span></h1>
+ <div class="hint">Include visible living lettuce only. Exclude moss, other vegetation, medium, pot, background and clearly dead/dry tissue.</div>
+</header>
+<div class="toolbar">
+ <button id="paint" class="active" type="button">Paint</button><button id="erase" type="button">Erase</button>
+ <label>Brush radius <input id="radius" type="number" min="1" max="80" value="6"> native px</label>
+ <button id="undo" type="button" disabled>Undo</button><button id="clear" type="button">Clear</button>
+ <label><input id="show" type="checkbox" checked> Show mask</label>
+ <label>Zoom <input id="zoom" type="range" min="10" max="200" step="5" value="40"><span id="zoomLabel"></span></label>
+ <button id="fit" type="button">Fit image</button>
+</div>
+<main class="viewers">
+ <section class="viewer"><h2>Original image</h2><div id="left" class="viewport"><img id="original" alt="Original lettuce photo"></div></section>
+ <section class="viewer"><h2>Candidate / corrections (cyan)</h2><div id="right" class="viewport"><div id="stage" class="stage"><img id="backdrop" alt="Original under candidate"><canvas id="mask"></canvas><div id="cursor"></div></div></div></section>
+</main>
+<footer>
+ <div id="scale" class="hint"></div><div id="notes"></div>
+ <div id="review"></div>
+ <div class="actions"><button id="draft" type="button">Save unreviewed draft</button><button id="approve" type="button" disabled>APPROVE &amp; save MANUAL_GROUND_TRUTH</button><span class="hint">Edits reset confirmations. Closing the tab never approves.</span></div>
+ <div id="status" role="status">Loading candidate…</div>
+</footer>
+<script>
+'use strict';
+const $=id=>document.getElementById(id), token=location.hash.slice(1);
+let w=0,h=0,pixels,mode='paint',history=[],last=null,stroke=false,busy=false,approved=false,ready=false;
+const checks={}, ctx=$('mask').getContext('2d');
+const statements=[
+ 'Mask contains only visible living lettuce tissue (no other vegetation).',
+ 'All identifiable visible lettuce is included; no hidden tissue inferred.',
+ 'Moss and other green vegetation are excluded.',
+ 'Growing medium is excluded.',
+ 'Clearly dead/dry tissue is excluded; uncertain pale tissue is adjudicated.',
+ 'Pot and background are excluded.',
+ 'I accept the saved pot-plane approximation, not true 3D leaf area.'
+];
+function message(text,error=false){$('status').textContent=text;$('status').style.color=error?'#a32e22':'#182c25';}
+async function api(path,data){
+ const headers={'X-Review-Token':token}; if(data!==undefined)headers['Content-Type']='application/json';
+ const response=await fetch(path,{method:data===undefined?'GET':'POST',headers,body:data===undefined?undefined:JSON.stringify(data)});
+ if(!response.ok){const result=await response.json();throw new Error(result.error||response.statusText);}
+ return response;
+}
+function updateActions(){
+ $('approve').disabled=!ready||busy||approved||stroke||!Object.values(checks).every(c=>c.checked);
+ $('draft').disabled=!ready||busy||approved||stroke;
+ $('undo').disabled=!ready||busy||approved||history.length===0;
+ $('clear').disabled=!ready||busy||approved;
+ $('stage').style.pointerEvents=busy||approved?'none':'auto';
+ for(const checkbox of Object.values(checks))checkbox.disabled=busy||approved||stroke;
+}
+function resetReview(){for(const c of Object.values(checks))c.checked=false;updateActions();}
+function checkpoint(){history.push(pixels.slice());if(history.length>20)history.shift();resetReview();}
+function render(){
+ const image=ctx.createImageData(w,h);
+ for(let i=0;i<pixels.length;i++)if(pixels[i]){image.data[i*4+1]=220;image.data[i*4+2]=255;image.data[i*4+3]=115;}
+ ctx.putImageData(image,0,0);
+}
+function setZoom(scale){
+ const dw=Math.round(w*scale),dh=Math.round(h*scale);
+ $('stage').style.width=dw+'px';$('stage').style.height=dh+'px';
+ $('original').style.width=dw+'px';$('original').style.height=dh+'px';
+ $('zoomLabel').textContent=Math.round(scale*100)+'%';$('zoom').value=Math.round(scale*100);
+}
+function fit(){if(w)setZoom(Math.max(.1,Math.min(1,($('right').clientWidth-16)/w,($('right').clientHeight-16)/h)));}
+function nativePoint(event){
+ const r=$('mask').getBoundingClientRect();
+ const x=(event.clientX-r.left)*w/r.width,y=(event.clientY-r.top)*h/r.height;
+ if(x<0||y<0||x>=w||y>=h)return null;
+ return [x,y];
+}
+function brushRadius(){return Math.max(1,Math.min(80,Number($('radius').value)||1));}
+function drawDisc(point){
+ const radius=brushRadius(),[x,y]=point,value=mode==='paint'?1:0;
+ for(let py=Math.max(0,Math.ceil(y-radius));py<=Math.min(h-1,Math.floor(y+radius));py++)
+  for(let px=Math.max(0,Math.ceil(x-radius));px<=Math.min(w-1,Math.floor(x+radius));px++)
+   if((px-x)**2+(py-y)**2<=radius**2)pixels[py*w+px]=value;
+}
+function drawStroke(a,b){
+ const steps=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/Math.max(1,brushRadius()/2)));
+ for(let i=0;i<=steps;i++)drawDisc([a[0]+(b[0]-a[0])*i/steps,a[1]+(b[1]-a[1])*i/steps]);
+ resetReview();render();
+}
+function showCursor(event){
+ const p=nativePoint(event);if(!p){$('cursor').style.display='none';return;}
+ const r=$('mask').getBoundingClientRect(),diameter=2*brushRadius()*r.width/w;
+ Object.assign($('cursor').style,{display:'block',width:diameter+'px',height:diameter+'px',left:(p[0]*r.width/w-diameter/2)+'px',top:(p[1]*r.height/h-diameter/2)+'px'});
+}
+$('mask').addEventListener('pointerdown',event=>{
+ if(!ready||busy||approved||event.button!==0||!$('show').checked)return;
+ const point=nativePoint(event);if(!point)return;
+ event.preventDefault();stroke=true;checkpoint();last=point;
+ $('mask').setPointerCapture(event.pointerId);drawStroke(point,point);
+});
+$('mask').addEventListener('pointermove',event=>{
+ if(!ready)return;showCursor(event);if(!stroke)return;
+ const point=nativePoint(event);if(!point){last=null;return;}
+ drawStroke(last||point,point);last=point;
+});
+function finishStroke(){if(stroke){stroke=false;last=null;updateActions();message('Unreviewed corrections. Inspect boundaries, then confirm every statement before APPROVE.');}}
+$('mask').addEventListener('pointerup',finishStroke);
+$('mask').addEventListener('pointercancel',finishStroke);
+$('mask').addEventListener('lostpointercapture',finishStroke);
+$('mask').addEventListener('pointerleave',()=>$('cursor').style.display='none');
+for(const name of ['paint','erase'])$(name).onclick=()=>{mode=name;for(const id of ['paint','erase'])$(id).classList.toggle('active',id===mode);};
+$('undo').onclick=()=>{if(!history.length||busy||approved)return;pixels=history.pop();resetReview();render();message('Undo restored an unreviewed mask.');};
+$('clear').onclick=()=>{if(!ready||busy||approved)return;checkpoint();pixels.fill(0);render();message('Mask cleared. Empty masks cannot be approved. Undo restores the previous draft.');};
+$('show').onchange=()=>{$('mask').style.opacity=$('show').checked?'1':'0';};
+$('zoom').oninput=()=>setZoom(Number($('zoom').value)/100);$('fit').onclick=fit;
+window.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'&&event.target.tagName!=='INPUT'){event.preventDefault();$('undo').click();}});
+let syncing=false;for(const [from,to] of [['left','right'],['right','left']])$(from).addEventListener('scroll',()=>{if(syncing)return;syncing=true;$(to).scrollTop=$(from).scrollTop;$(to).scrollLeft=$(from).scrollLeft;requestAnimationFrame(()=>syncing=false);});
+function encodedMask(){
+ const chunks=[];for(let i=0;i<pixels.length;i+=16384)chunks.push(String.fromCharCode(...pixels.subarray(i,i+16384)));
+ return btoa(chunks.join(''));
+}
+async function save(approve){
+ if(!ready||busy||approved||stroke)return;
+ const review=Object.fromEntries(Object.entries(checks).map(([key,c])=>[key,c.checked]));
+ if(approve&&!Object.values(review).every(Boolean))return;
+ if(approve&&!window.confirm('APPROVE this exact mask as manually reviewed visible lettuce ground truth? This saves the reviewed mask and computes its projected area using the saved pot calibration.'))return;
+ busy=true;updateActions();message('Saving…');
+ try{
+  const payload={width:w,height:h,mask_base64:encodedMask()};
+  if(approve){payload.approval='APPROVE';payload.review=review;}
+  const result=await (await api(approve?'/approve':'/draft',payload)).json();
+  if(approve){approved=true;$('badge').textContent='MANUAL_GROUND_TRUTH';message('Human-approved ground truth saved.\n'+result.pixel_area+' px; approximate projected area '+result.projected_area_cm2.toFixed(6)+' cm²\n'+result.output);}
+  else message('UNREVIEWED draft saved. Human approval is still pending.\n'+result.output);
+ }catch(error){message(error.message,true);}finally{busy=false;updateActions();}
+}
+$('draft').onclick=()=>save(false);$('approve').onclick=()=>save(true);
+async function init(){
+ try{
+  if(!token)throw new Error('Open the full Review URL printed by the launch command, including its session fragment.');
+  const data=await (await api('/session')).json();w=data.width;h=data.height;
+  pixels=Uint8Array.from(atob(data.mask_base64),c=>c.charCodeAt(0));
+  if(pixels.length!==w*h)throw new Error('Invalid native mask length');
+  $('mask').width=w;$('mask').height=h;
+  const blob=await (await api('/image.png')).blob(),url=URL.createObjectURL(blob);
+  $('original').src=url;$('backdrop').src=url;
+  data.review_keys.forEach((key,i)=>{const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=false;input.id='review-'+key;input.onchange=updateActions;checks[key]=input;label.append(input,document.createTextNode(statements[i]));$('review').append(label);});
+  $('badge').textContent=data.measurement_status;
+  $('scale').textContent='Native image '+w+' × '+h+' px. Saved reviewed outer pot diameter: '+data.pot_diameter_cm+' cm. Areas are computed only after APPROVE.';
+  $('notes').textContent=(data.review_notes||[]).join(' ');
+  render();fit();ready=true;updateActions();message('Human approval pending. Paint/erase corrections, inspect at 100% zoom, and adjudicate uncertain tissue.');
+ }catch(error){message(error.message,true);}
+}
+init();
+</script>
+</html>

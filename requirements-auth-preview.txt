@@ -1,0 +1,5 @@
+# Reuse the project's existing FastAPI/Starlette/Uvicorn environment.
+# Hashing uses Python/OpenSSL scrypt; no new service or database dependency.
+fastapi==0.143.0
+starlette==1.7.0
+uvicorn==0.54.0

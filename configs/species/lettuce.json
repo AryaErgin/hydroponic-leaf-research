@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "species": "lettuce",
+  "measurement_target": "visible_projected_plant_foreground",
+  "validation": {"status": "development_only", "evidence_id": "EXP-003 exposed OAK-1 benchmark; no independent confirmation"},
+  "color": {"h_min": 25, "h_max": 100, "s_min": 60, "v_min": 15, "exg_min": 40, "morphology_radius": 1},
+  "seed_color": {"h_max": 70, "normalized_exg_min": 0.12}
+}

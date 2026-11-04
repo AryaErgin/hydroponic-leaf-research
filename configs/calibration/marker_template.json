@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "image_sha256": null,
+  "image_size_px": null,
+  "acquisition_id": null,
+  "corners_px": null,
+  "width_cm": null,
+  "height_cm": null,
+  "validation": {
+    "plane_validated": false,
+    "distortion_validated": false,
+    "plane_id": null,
+    "protocol_id": null
+  }
+}
