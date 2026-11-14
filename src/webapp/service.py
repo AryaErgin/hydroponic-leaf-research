@@ -119,7 +119,7 @@ class Service:
                     # Runtime imports stay lazy so missing/blocked native ML libraries cannot disable review.
                     from ..training.inference import predict_version
                     started=perf_counter()
-                    learned=predict_version(rgb,version=record['version'],registry=self.models,device='cpu')
+                    learned=predict_version(rgb,version=record['version'],registry=self.models,device=self.settings.inference_device)
                     elapsed=perf_counter()-started
                     mask=np.asarray(learned['mask'])
                     if mask.shape!=rgb.shape[:2] or not np.isin(mask,[0,1]).all():
@@ -136,12 +136,12 @@ class Service:
                         raw_pixel_area=pixel_area,reported_pixel_area=None,projected_area_cm2=None,
                         qc_reasons=reasons,diagnostics=dict(empty_mask=empty,full_image_mask=full,
                             semantic_accuracy_established=False),
-                        device='cpu',inference_seconds=elapsed,inference_timing_scope='wall_time_including_cold_model_load',
+                        device=self.settings.inference_device,inference_seconds=elapsed,inference_timing_scope='wall_time_including_cold_model_load',
                         checkpoint_sha256=record['artifacts']['checkpoint']['sha256'])
                     model=dict(version=record['version'],architecture=record['architecture'],
                         checkpoint_sha256=record['artifacts']['checkpoint']['sha256'],candidate_kind='AUTOMATIC_PREDICTION',
                         validation_scope='UNVALIDATED / REVIEW REQUIRED',requested_engine=engine,fallback_reason=None,
-                        device='cpu',inference_seconds=elapsed,inference_timing_scope='wall_time_including_cold_model_load',
+                        device=self.settings.inference_device,inference_seconds=elapsed,inference_timing_scope='wall_time_including_cold_model_load',
                         staged_preview=engine.startswith('learned:'))
                     logger.info('learned_candidate %s',json.dumps(dict(model=model,image_sha256=payload['image_sha256'],
                         native_dimensions=[rgb.shape[1],rgb.shape[0]],preprocessing=metadata.get('geometry'),

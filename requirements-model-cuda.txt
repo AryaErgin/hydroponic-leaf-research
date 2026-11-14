@@ -1,0 +1,5 @@
+# Native Windows/Linux CUDA 12.8 wheels; qualified on RTX 5090 Laptop sm_120.
+# Install separately from requirements-web.txt and requirements-model-common.txt.
+# CUDA/driver compatibility is checked at runtime; no driver installation.
+--index-url https://download.pytorch.org/whl/cu128
+torch==2.10.0+cu128

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "version": "exp006-segformer-001",
+  "architecture": "segformer_b0",
+  "species": "lettuce",
+  "checkpoint_sha256": "92c66f6f2f0d0f1666ba7351b85b8eaeb071e3bfab2bb165a47d95b6354f0134",
+  "files": {
+    "models/lettuce/champion.json": {
+      "bytes": 365,
+      "sha256": "345c348986fa1eed0d667a3f62d8a98bf86d52006a8004c1d6dee63886cf498e"
+    },
+    "models/lettuce/versions/exp006-segformer-001/registry.json": {
+      "bytes": 1266,
+      "sha256": "f762c17fb7bfc5597c757f9b0b9eb2a7bacfbef39336887dec9410469e9f620c"
+    },
+    "models/lettuce/versions/exp006-segformer-001/model.safetensors": {
+      "bytes": 14885476,
+      "sha256": "92c66f6f2f0d0f1666ba7351b85b8eaeb071e3bfab2bb165a47d95b6354f0134"
+    },
+    "models/lettuce/versions/exp006-segformer-001/config.json": {
+      "bytes": 1251,
+      "sha256": "332f334d23bd0c6daf8f70b6d29b0bdf169bd596c71c5fd1cb3dda9a95b395d4"
+    },
+    "models/lettuce/versions/exp006-segformer-001/train_manifest.jsonl": {
+      "bytes": 129735,
+      "sha256": "4db55215578163d1f1a98f537d88650a51439c8572412fe509f0525eaf6bd467"
+    },
+    "models/lettuce/versions/exp006-segformer-001/provenance.json": {
+      "bytes": 4247,
+      "sha256": "cde0c4f145aeed89c324d4a5e177b643e492a22135865a3fbc2923d1c9929c36"
+    },
+    "models/lettuce/versions/exp006-segformer-001/evaluation.json": {
+      "bytes": 695046,
+      "sha256": "92656f55249d17468e58f55c38e79b7a17385b50521fc21f18d21e9f128ecf73"
+    },
+    "models/lettuce/notices/SegFormer_LICENSE": {
+      "bytes": 4065,
+      "sha256": "f549820c06519e3105e5174a2fd7285224ffd2268a7f879a843b1a255fd04a61"
+    },
+    "models/lettuce/notices/MiT_B0_MODEL_CARD.md": {
+      "bytes": 3346,
+      "sha256": "70dd05617d227fea8bab2dba202dbccd2a250fbb8279798b9005eb231c87556e"
+    },
+    "models/lettuce/notices/RESEARCH_MODEL_TERMS.md": {
+      "bytes": 2203,
+      "sha256": "9ece2d50eb3fb5695cc6ad6e3693a892ffb14272bc1a0d2d49b810311011d6a4"
+    },
+    "models/lettuce/notices/OAK_DATASET_ATTRIBUTION.json": {
+      "bytes": 924,
+      "sha256": "70b17adc6aadc3ae6a26254f677f133fccfecde33ce32635330ebcf5cb76ce2d"
+    },
+    "models/lettuce/notices/transformers_LICENSE": {
+      "bytes": 11418,
+      "sha256": "77fd4710def9ec3c0f6225800e0235f15a425abd4a8b03559127fcd782612049"
+    }
+  },
+  "source_revision": "80983a413c30d36a39c20203974ae7807835e2b4",
+  "license": "NVIDIA Source Code License for SegFormer; noncommercial research/evaluation only",
+  "license_sources": [
+    "https://huggingface.co/nvidia/mit-b0/blob/80983a413c30d36a39c20203974ae7807835e2b4/README.md",
+    "https://raw.githubusercontent.com/NVlabs/SegFormer/master/LICENSE"
+  ]
+}

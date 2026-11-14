@@ -23,6 +23,8 @@ class Settings:
     # Institutional deployments use independent metadata and object namespaces.
     # Legacy records remain in their original namespace pending explicit mapping.
     organization_id: str | None = None
+    # Explicit local hardware selection; production remains CPU by default.
+    inference_device: str = 'cpu'
 
     @classmethod
     def from_env(cls):
@@ -36,6 +38,8 @@ class Settings:
             firestore_prefix=os.getenv('HYDRO_FIRESTORE_PREFIX','hydroponic'))
 
     def validate(self):
+        if self.inference_device not in ('cpu','cuda'):
+            raise ValueError('Invalid inference device; choose cpu or cuda')
         self.data_dir=Path(self.data_dir).resolve()
         if ROOT not in self.data_dir.parents:
             raise ValueError('HYDRO_DATA_DIR must be below the project root')
