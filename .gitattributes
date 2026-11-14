@@ -1,0 +1,9 @@
+# Portable installer sources use deterministic line endings on Windows and WSL.
+/*.ps1 text eol=lf
+/*.sh text eol=lf
+/src/local_setup/** text eol=lf
+/configs/runtime/** text eol=lf
+/requirements-local*.txt text eol=lf
+/requirements-model*.txt text eol=lf
+/tests/test_local_*.py text eol=lf
+/tests/test_model_assets.py text eol=lf
