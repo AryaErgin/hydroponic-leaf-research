@@ -53,6 +53,14 @@ def main(argv=None):
     parser.add_argument('--installation',action='store_true')
     args=parser.parse_args(argv)
     results={};failed=False
+    repair={
+        'Python':'Install Python 3.11 x64, then rerun setup.ps1 to repair pinned dependencies.',
+        'Node':'Install Node.js 22 or 24 with npm; reopen the terminal and rerun setup.ps1.',
+        'Firebase emulator':'Close the other local Auth instance if port 9099 is occupied; rerun setup.ps1 to restore pinned tools.',
+        'Database':'Keep .runtime/local intact. Restore a matched stopped local backup or ask the maintainer; never reset the research database.',
+        'Frontend':'Rerun setup.ps1 to rebuild the locked browser SDK and validate the guide.',
+        'Real inference smoke test':'Reinstall the authorized bundle using setup.ps1 -ModelBundle <bundle>. For incompatible CUDA use -Device cpu; native DLL restrictions may require the documented WSL alternative. No fallback was attempted.',
+        'Leaf-instance workflow':'Use the same published source version and rerun setup.ps1; preserve your local database.'}
     def check(name,action):
         nonlocal failed
         try:
@@ -60,7 +68,7 @@ def main(argv=None):
             print(name+': '+('PASSED' if results[name].get('status')=='PASSED' else 'OK'),flush=True)
         except Exception as error:
             failed=True;results[name]={'status':'FAILED','type':type(error).__name__}
-            print(name+': ERROR. Run setup.ps1 again; existing data is preserved. ('+type(error).__name__+')',flush=True)
+            print(name+': ERROR ('+type(error).__name__+'). '+repair[name],flush=True)
     try:
         runtime.guard_environment();profile=runtime.load_profile(args.profile)
     except (ValueError,OSError) as error:
