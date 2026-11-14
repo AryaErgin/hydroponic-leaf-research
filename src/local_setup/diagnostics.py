@@ -2,6 +2,7 @@
 import argparse
 from contextlib import closing
 import json
+import os
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -26,6 +27,8 @@ def leaf_smoke():
 
 
 def model_smoke(root,device):
+    os.environ['HF_HUB_OFFLINE']='1'
+    os.environ['HF_HUB_DISABLE_TELEMETRY']='1'
     import numpy as np
     from .model_assets import verify_installed
     from ..training.inference import predict_version
@@ -40,7 +43,7 @@ def model_smoke(root,device):
     started=time.monotonic();result=predict_version(rgb,registry=ModelRegistry(),device=device)
     assert result['mask'].shape==rgb.shape[:2]
     assert result['metadata']['architecture']=='segformer_b0'
-    return dict(status='PASSED',device=device,seconds=round(time.monotonic()-started,3),
+    return dict(status='PASSED',device=device,torch_version=torch.__version__,seconds=round(time.monotonic()-started,3),
         predicted_pixels=int(result['mask'].sum()),model=verified,synthetic_fixture=True)
 
 
@@ -52,7 +55,9 @@ def main(argv=None):
     results={};failed=False
     def check(name,action):
         nonlocal failed
-        try:results[name]=action();print(name+': OK',flush=True)
+        try:
+            results[name]=action()
+            print(name+': '+('PASSED' if results[name].get('status')=='PASSED' else 'OK'),flush=True)
         except Exception as error:
             failed=True;results[name]={'status':'FAILED','type':type(error).__name__}
             print(name+': ERROR. Run setup.ps1 again; existing data is preserved. ('+type(error).__name__+')',flush=True)
@@ -97,6 +102,12 @@ def main(argv=None):
                 assert db.execute('PRAGMA quick_check').fetchone()[0]=='ok'
         export=json.loads((runtime.STATE/'identity-state.json').read_text())
         assert export['accounts'].get('users')
+        exported={user['localId'] for user in export['accounts']['users']}
+        auth_db=runtime.STATE/'auth/auth.sqlite3'
+        with closing(sqlite3.connect(auth_db.as_uri()+'?mode=ro',uri=True)) as db:
+            bound={row[0] for row in db.execute('SELECT uid FROM firebase_identities')}
+            assert bound and bound.issubset(exported),'Restore the matching local identity backup.'
+            assert db.execute("SELECT count(*) FROM users WHERE role='PLATFORM_OWNER' AND status='ACTIVE'").fetchone()[0]==1
         return {'sqlite_databases':len(databases),'identity_export':True}
     def frontend_check():
         sdk=runtime.ROOT/'src/firebase_preview/static/firebase-sdk.js'

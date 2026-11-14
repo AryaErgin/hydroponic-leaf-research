@@ -105,6 +105,14 @@ def build(mode=None,device='cpu'):
             identity='firebase_auth_emulator',storage='local_sqlite',
             model=app.state.local_model_status)
 
+    @app.get('/local-account.js')
+    def local_account_script():
+        from ..auth_preview.app import STATIC
+        script=(STATIC/'app.js').read_text(encoding='utf-8')
+        script=script.replace('Bah\u00e7e\u015fehir is the only signup institution. Additional institution onboarding is reserved for a later release.',
+            'Local organizations have independent membership and approval. The local owner can add an institution below.')
+        return Response(script,media_type='text/javascript')
+
     @app.get('/local-tools.js')
     def local_script(): return Response(LOCAL_SCRIPT,media_type='text/javascript')
 
@@ -127,10 +135,12 @@ def build(mode=None,device='cpu'):
         if response.headers.get('content-type','').startswith('text/html'):
             body=b''.join([chunk async for chunk in response.body_iterator])
             label=('FULL scientific mode: real promoted SegFormer enabled; human review required.' if mode=='FULL' else
-                'DEMO mode: model availability is not guaranteed; classical CV and manual review remain available.')
-            banner=('<aside role="status" style="padding:12px;background:#fff2be;color:#302900;border:2px solid #b08100">LOCAL / '+mode+' — '+label+' Isolated local accounts and data. No email is sent.</aside>').encode()
+                'DEMO mode: scientific-model readiness has not been verified. Complete FULL setup before new model analyses.')
+            banner=('<aside role="status" style="padding:12px;background:#fff2be;color:#302900;border:2px solid #b08100">LOCAL / '+mode+'  |  '+label+' Isolated local accounts and data. No email is sent.</aside>').encode()
             closing=body.find(b'>',body.find(b'<body'))
             if closing>=0: body=body[:closing+1]+banner+body[closing+1:]
+            body=body.replace(b'/static/app.js',b'/local-account.js')
+            body=body.replace(b'Synthetic scientific data only.',b'Isolated local research workspace.')
             body=body.replace(b'</body>',b'<script src="/local-tools.js" defer></script></body>')
             headers=dict(response.headers); headers.pop('content-length',None)
             response=Response(body,status_code=response.status_code,headers=headers,media_type=None)

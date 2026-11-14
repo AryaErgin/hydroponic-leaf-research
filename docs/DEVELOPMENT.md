@@ -1,145 +1,88 @@
-# Local development
+# Development and scientific runtime
 
-This workflow runs the existing integrated application, frontend, and user guide with a loopback Firebase Auth emulator and local SQLite/media. It does not deploy, authenticate to Google Cloud, import production accounts, or retrieve scientific data or weights.
+## Local setup and persistence
 
-## Prerequisites and scope
+Use the four commands in [README](../README.md). Required: Python 3.11 x64 and Node 22/24 with npm. Setup pins the web dependencies, model runtime and `firebase-tools@15.22.4`, and builds the locked browser SDK. Auth-only emulation uses no Java. No Google login, production credentials, SMTP, Firestore or GCS connection is needed. No `.env` loader is used; ordinary setup requires no environment variables.
 
-- Use **64-bit CPython 3.11**. The existing qualified Windows runtime is 3.11.9. Newer Python versions are not qualified by this guide.
-- Use Node.js 22 or 24 with npm. The browser SDK is locked in `src/firebase_preview/client/package-lock.json`; the Auth wrapper requires exactly `firebase-tools@15.22.4`. Do not silently upgrade it because the wrapper imports CLI internals.
-- A Java 21 JDK is required only for the optional Firestore emulator. Auth-only development does not need Java.
-- First installation needs network access to Python/npm package registries, and Firestore needs its official emulator download. Subsequent local use needs the installed packages and generated SDK bundle.
-- Run from the repository root. Use separate environments for Windows and WSL; do not share a venv or `node_modules` across platforms. Put project files and generated outputs under this repository.
+Generated artifacts stay in this clone: `.venv/`, `.runtime/`, SDK/node_modules and `models/lettuce/`. The runtime profile records local executable paths, mode and device; rerun setup on another computer instead of copying it. The first setup asks for a `.test` email and hidden 15–128 character password. Existing owners are not replaced. The owner can add organizations and simulate synthetic member email proof, then use normal approval/role controls. Verification never grants workspace access by itself.
 
-The local origin is fixed to `http://localhost:8896`; bind Uvicorn to loopback and use that URL consistently. Auth is fixed to `127.0.0.1:9099`; optional Firestore tests use `127.0.0.1:8791`. Stop another local instance before reusing its ports. The app uses `.runtime/firebase/manual/{auth,science}`; every clone has its own runtime. Avoid starting two servers against that same directory.
+App: `localhost:8896`; Auth: `127.0.0.1:9099`. Occupied ports cause an actionable error; no foreign process is killed. One terminal supervises both services. `start.ps1 -NoBrowser` suppresses opening a tab. Ctrl+C snapshots and stops its own services.
 
-`.env.example` is a reference template. **No dotenv loader reads `.env` automatically.** Set environment variables explicitly in every terminal that needs them. The local entry point constructs its own storage settings: production `HYDRO_DATA_DIR`/Firestore variables do not configure this local app. Do not use `src.firebase_preview.production:build`, `src.firebase_preview.live_test`, or cloud container recipes for this workflow.
+Private databases/media live in `.runtime/local/{auth,science}/`. A serialized, atomic `identity-state.json` contains the emulator export plus SQLite backup payloads. Snapshots follow successful mutations and run during operation/shutdown. Pinned-emulator import restores `validSince`, preserving session revocation state. Startup imports identities without rolling live scientific SQLite backwards. Unknown storage, mismatched bindings and production environment settings are rejected.
 
-## Windows PowerShell
+Back up the **whole `.runtime/local/` directory while stopped**, including its ownership marker and identity export. It contains password hashes and private data: never publish it. A hard machine interruption can lose an in-flight request; successful mutations snapshot before returning. This local backup is not production disaster recovery. Never delete an existing research database to resolve an identity mismatch.
 
-Clone the private repository using an account with access, then enter it:
+## Authorized model bundle
 
-```powershell
-git clone https://github.com/AryaErgin/hydroponic-leaf-research.git
-Set-Location hydroponic-leaf-research
-py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-npm --prefix .runtime/firebase-tools install --no-save --no-package-lock --no-audit --no-fund firebase-tools@15.22.4
-Push-Location src/firebase_preview/client
-npm ci --no-audit --no-fund
-.\node_modules\.bin\esbuild.cmd sdk-entry.js --bundle --minify --format=esm --platform=browser --outfile=../static/firebase-sdk.js
-Pop-Location
-.\.venv\Scripts\python.exe scripts/build_user_guide.py --check
+Promoted lettuce checkpoint: **exp006-segformer-001**, SegFormer B0 binary classifier, 14,885,476 bytes. SHA-256:
+
+```text
+92c66f6f2f0d0f1666ba7351b85b8eaeb071e3bfab2bb165a47d95b6354f0134
 ```
 
-No venv activation is required. Keep the following Auth emulator command running in terminal 1 at the repository root. The wrapper disables provider action-link logging and does not send emails:
+`configs/runtime/model-assets.json` pins all bundle files/hashes. Inference uses RGB/255, ImageNet normalization, 512-pixel letterboxing, native-coordinate restoration and threshold 0.5. Strict safetensors loading constructs the architecture without a pretrained download. No dataset, optimizer, encoder cache or torchvision is necessary for inference.
+
+Terms: [NVIDIA SegFormer license](https://github.com/NVlabs/SegFormer/blob/master/LICENSE), [encoder card](https://huggingface.co/nvidia/mit-b0). The checkpoint lineage restricts use/derivatives to noncommercial research/evaluation with notices and other conditions. The private bundle preserves exact license, model card, Transformers license and dataset attribution. Notices do not grant rights. Supply it only to an authorized recipient whose use satisfies the terms. No public upload, new cloud download rights or commercial license is provided.
+
+Authorized maintainer export from an existing immutable installation:
 
 ```powershell
-$env:HYDRO_FIREBASE_TOOLS_ROOT = (Resolve-Path .runtime/firebase-tools/node_modules/firebase-tools).Path
-node scripts/run_firebase_auth_emulator.cjs
+py -3.11 -m src.local_setup.model_assets export --source-root 'C:\authorized-installation' --notices-root 'C:\authorized-notices' --bundle '.model-bundles/research-model-exp006.zip'
 ```
 
-In terminal 2, create the first **synthetic** local owner once, then start the app:
+Install validates hashes, complete registry/config/provenance, paths and sizes; rejects corrupt/changed/duplicate/symlink archive members and conflicting destinations. Identical reinstall is a no-op. Never alter the allowlist to accept arbitrary weights.
 
-```powershell
-$env:FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099'
-.\.venv\Scripts\python.exe scripts/bootstrap_demo_owner.py
-.\.venv\Scripts\python.exe -m uvicorn src.firebase_preview.run:build --factory --host 127.0.0.1 --port 8896 --no-access-log --no-proxy-headers
-```
+FULL setup and startup run the actual model. Failure stops startup; requested learned lettuce inference never silently falls back to classical CV. DEMO is account/UI work without scientific readiness; models already installed are retained. Sorrel keeps its existing separate classical/manual functionality, without a validated learned model. All proposals require human review.
 
-The bootstrap prompts for a password of 15 to 128 characters, matching the existing sign-in form. It creates only `owner@example.test` (`demo-owner`), dynamically binds its new emulator UID, and grants it a local owner role. It simulates verified-email proof in the emulator; that is not real email delivery or verification. It refuses an existing owner or existing demo account and never resets credentials. For unattended synthetic acceptance only, `HYDRO_DEMO_PASSWORD` supplies the same password input; remove the variable afterward with `Remove-Item Env:HYDRO_DEMO_PASSWORD`. Do not store it in a tracked file or print provider responses.
+## CPU, GPU and WSL
 
-Open **http://localhost:8896/signin**, sign in with `owner@example.test` and the password you chose, then open `/analyze` or `/help`. The local organizations are fixtures; no institution affiliation is asserted. Further registrations remain pending until an administrator approves them and emulator email proof is completed. Use the owner UI to review membership requests. The guarded bootstrap is the simplest first-account path; `src.auth_preview.manage` provisions a different legacy credential system and is not a Firebase owner bootstrap.
+Qualified native runtime: Python 3.11.9, Node 24.18, Torch 2.10.0+cu128, RTX 5090 Laptop sm_120, NVIDIA driver 610.88. CPU mode installs Torch 2.10.0+cpu. Auto selects CUDA only with an appropriate detected driver; actual tensor and inference probes follow. A selected-device failure is an error, not a silent switch. Device is retained in analysis provenance; production's default remains CPU.
 
-## WSL/Linux equivalent
+`requirements-model-{cpu,cuda}.txt` use [official PyTorch indexes](https://pytorch.org/get-started/previous-versions/). Shared inference dependencies are pinned in `requirements-model-common.txt`. CPU/CUDA can differ at threshold-border pixels; no bit-exact cross-device guarantee is made.
 
-Install Python 3.11 and its venv support using your distribution's tooling, then clone inside a project directory accessible to that environment. Use the following commands from the repository root:
+The historical native c10.dll restriction did not reproduce in the qualified native runtime. Scripts do not alter App Control, drivers or Windows features. An existing WSL2 environment with Python 3.11 and Node 22/24 can instead use:
 
 ```bash
-python3.11 -m venv .venv-wsl
-.venv-wsl/bin/python -m pip install -r requirements-dev.txt
-npm --prefix .runtime/firebase-tools install --no-save --no-package-lock --no-audit --no-fund firebase-tools@15.22.4
-(cd src/firebase_preview/client && npm ci --no-audit --no-fund && ./node_modules/.bin/esbuild sdk-entry.js --bundle --minify --format=esm --platform=browser --outfile=../static/firebase-sdk.js)
-.venv-wsl/bin/python scripts/build_user_guide.py --check
-export HYDRO_FIREBASE_TOOLS_ROOT="$PWD/.runtime/firebase-tools/node_modules/firebase-tools"
-node scripts/run_firebase_auth_emulator.cjs
+bash setup.sh --model-bundle /path/to/authorized/research-model-exp006.zip --device cpu
+bash start.sh
+.venv/bin/python -m src.local_setup.diagnostics
 ```
 
-In a second shell at the same repository:
+Use a **separate clone** and OS-specific venv/node_modules. WSL prerequisites are not installed automatically. Existing WSL CPU/CUDA inference was checked separately; it is not a full fresh WSL setup result. Windows is the primary acceptance target; no blanket macOS/Linux qualification is claimed.
 
-```bash
-export FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
-.venv-wsl/bin/python scripts/bootstrap_demo_owner.py
-.venv-wsl/bin/python -m uvicorn src.firebase_preview.run:build --factory --host 127.0.0.1 --port 8896 --no-access-log --no-proxy-headers
-```
+## Tests
 
-Use `unset HYDRO_DEMO_PASSWORD` after unattended fixture creation. Windows and WSL share host ports under common networking configurations; do not start competing emulators. These commands are platform equivalents; consult the publication report for which operating systems were actually exercised in this release.
-
-## Dependencies and model availability
-
-`requirements-dev.txt` includes `requirements-firebase-preview.txt`, `requirements-web-test.txt`, and therefore `requirements-web.txt`, plus pinned pytest and requests. It pins Pydantic 2.13.5 to match the qualified web runtime and native core instead of resolving a newer unqualified binary. The runtime uses FastAPI, Starlette, Uvicorn, python-multipart, SQLAlchemy, NumPy, Pillow/pillow-heif, Firebase Admin, and Google storage libraries. The web requirements retain the existing PostgreSQL driver and cloud adapters even though this loopback path uses SQLite/files. Tests use pytest, requests, httpx, and httpx2; both HTTP clients are required by the existing test environment.
-
-The web and classical CV import paths do **not** require SciPy, OpenCV, or Torch. Learned-model runtime imports are lazy: `src/training/models.py` and `src/training/inference.py` load Torch only when explicitly used. Training/inference requires an independently compatible PyTorch/torchvision installation, safetensors, and Transformers for SegFormer, plus authorized local model artifacts. These are intentionally outside the web setup. No generic `pip install torch` command establishes compatibility or recreates the excluded experiment.
-
-`models/`, datasets, derived checkpoints, registry/promotion files, and pretrained weights are not distributed. With an empty registry, `/api/models` reports no champion. Default `auto` lettuce analysis raises an unavailable-model error and generates no substitute mask. Selecting the existing **classical** engine explicitly runs its unvalidated candidate path; this is not a replacement validation or SegFormer reproduction. Manual review and scientific approval rules still apply. Kuzukulağı has separate limitations and no validated learned model.
-
-To restore research inference, an authorized maintainer must separately supply the complete immutable registry version (checkpoint, config, provenance, evaluation, training/validation manifests as applicable), verify recorded hashes and rights, and use the existing reviewed promotion workflow. Do not create a fake champion or relabel an untrained model. The SegFormer lineage has NVIDIA research/evaluation restrictions; the source publication grants no redistribution permission for weights or data.
-
-## Verification
-
-Run these checks with the installed development environment. On WSL replace `.\.venv\Scripts\python.exe` with `.venv-wsl/bin/python` and use the same Python arguments.
-
-Without emulators, run the developer guards, guide packaging, account/scientific integration, and synthetic scientific workflow:
+From an installed clone:
 
 ```powershell
+.\check.ps1
 .\.venv\Scripts\python.exe -m pip check
-.\.venv\Scripts\python.exe scripts/build_user_guide.py --check
-.\.venv\Scripts\python.exe -m pytest tests/test_demo_bootstrap.py tests/test_user_guide.py tests/test_integrated_app.py tests/test_integrated_science_workflow.py tests/test_firebase_durable_modes.py -q --tb=short --assert=plain
+.\.venv\Scripts\python.exe -m pytest tests/test_local_install.py tests/test_model_assets.py tests/test_leaf_instances.py tests/test_integrated_app.py tests/test_integrated_science_workflow.py tests/test_user_guide.py -q --tb=short --assert=plain
 node tests/integrated_frontend_checks.cjs
 node tests/firebase_access_checks.cjs
 node tests/firebase_production_ui_checks.cjs
 ```
 
-With the loopback Auth emulator running:
+Stop the app first for tests that own the actual Auth emulator:
 
 ```powershell
-$env:FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099'
-.\.venv\Scripts\python.exe -m pytest tests/test_firebase_identity.py tests/test_firebase_email_actions.py -q --tb=short --assert=plain
-node tests/firebase_sdk_checks.cjs
+$env:HYDRO_TEST_FIREBASE_TOOLS_ROOT = (Resolve-Path .runtime/firebase-tools/node_modules/firebase-tools).Path
+.\.venv\Scripts\python.exe -m pytest tests/test_local_runtime.py -q --tb=short --assert=plain
+Remove-Item Env:HYDRO_TEST_FIREBASE_TOOLS_ROOT
 ```
 
-`--assert=plain` avoids assertion introspection printing emulator tokens/action codes. These tests create synthetic accounts and action codes, never real mail. Some synthetic workflows inject predictors or model records: their passing status establishes HTTP/storage/approval contracts, not actual SegFormer inference or biological accuracy.
+Without that variable the emulator tests skip. Skips are not persistence passes. `--assert=plain` avoids printing provider tokens through assertion introspection. Synthetic predictors test contracts, not learned accuracy. FULL `check` performs actual model inference and split/area invariants; browser editing/approval acceptance is separate. Release QA uses an original procedural CC0 image, actual SegFormer and explicit local synthetic measurement metadata.
 
-### Optional durable Firestore integration
+Optional Firestore tests require Java 21 and the existing emulator-only harness, separate from SQLite setup. Historical experiments require authorized assets; asset-dependent skips do not establish scientific validation.
 
-This section tests persistence adapters against **local emulators**, not the running SQLite developer app. Install a Java 21 JDK and confirm `java -version` in the terminal launching Firestore. Keep Auth running. Create a local ignored CLI configuration and start Firestore in another terminal:
+## Troubleshooting and boundaries
 
-```powershell
-New-Item -ItemType Directory -Force .runtime | Out-Null
-'{"emulators":{"firestore":{"host":"127.0.0.1","port":8791},"ui":{"enabled":false},"singleProjectMode":false}}' | Set-Content -Encoding ascii .runtime/firebase-emulators.json
-$env:FIREBASE_EMULATORS_PATH = Join-Path (Get-Location) '.runtime/firebase-emulator-cache'
-node .runtime/firebase-tools/node_modules/firebase-tools/lib/bin/firebase.js emulators:start --only firestore --project demo-hydroponic-leaf-research --config .runtime/firebase-emulators.json
-```
+- Missing bundle: obtain it from an authorized maintainer, or explicitly choose DEMO.
+- Identity/storage mismatch: retain all files and restore a matched backup; do not recreate identities over a scientific database.
+- Port occupied: close the other app through its own terminal.
+- Native dependency failure: confirm Python 3.11 x64, fix the stated prerequisite and retry. Use CPU mode when CUDA is inappropriate.
+- PowerShell policy: follow your organization's approved process; scripts change no system-wide policy.
+- Failed analysis: the photograph is preserved; correct the error and retry.
+- Unattended first-owner QA can use `HYDRO_LOCAL_OWNER_EMAIL` and secret `HYDRO_LOCAL_OWNER_PASSWORD` instead of prompts. Remove them immediately; never write values to source/history/reports.
 
-For WSL, write the same JSON to `.runtime/firebase-emulators.json`, set `export FIREBASE_EMULATORS_PATH="$PWD/.runtime/firebase-emulator-cache"`, and run the same `node` command. Do not use `firebase login` or select a real cloud project. Existing production project identifiers are retained in the guarded adapter source; with these tests, requests are forced to the exact loopback emulators, and fixture namespaces are unique.
-
-Run the focused persistence suite in the Python terminal:
-
-```powershell
-$env:FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099'
-$env:FIRESTORE_EMULATOR_HOST = '127.0.0.1:8791'
-.\.venv\Scripts\python.exe -m pytest tests/test_firebase_repository.py tests/test_firebase_durable_workflow.py tests/test_firebase_restore.py -q --tb=short --assert=plain
-```
-
-Some tests skip if required emulators are missing. A skipped check is not a passing durable integration test. The full historical suite also contains data-, model-, display-, and platform-dependent experiments; `pytest tests` is not a fresh-clone acceptance command. Retain the test selection and explicit limitations in a release report.
-
-## Data, configuration, and release boundaries
-
-Local auth metadata is `.runtime/firebase/manual/auth/auth.sqlite3`; organization-scoped scientific databases and media are under `.runtime/firebase/manual/science/`. The runtime is private and ignored. Auth emulator accounts are in memory unless explicitly exported by an operator. Restarting Auth without restoring its matching identities invalidates existing local app sessions; the bootstrap deliberately does not overwrite an existing backend owner. For a new exercise use a separate fresh clone/runtime with a fresh emulator, rather than copying production or deleting another research workspace.
-
-The repository excludes `.env`, service-account material, Firebase web configuration, runtime databases, datasets, model binaries, experiment outputs, browser SDK builds, `node_modules`, and virtual environments. `.gitignore` reduces accidental staging; it does not sanitize already tracked files. Review the actual staged tree before publication.
-
-The retained cloud adapters describe an existing separately configured deployment. Historical Dockerfiles are excluded from this source publication because they depend on a private scientific base image containing excluded weights; there is no standalone fresh-clone container build. No credentials, production configuration, model download, deployment, or account migration is part of local setup. Do not weaken origin, emulator, institution, email-verification, session, or approval checks to bypass missing configuration.
-
-There is no project open-source license. Keep this repository private unless the owner separately authorizes publication and licensing. Dependency licenses and excluded research-asset terms remain independent.
-
-Nonsecret project identifiers and origins are retained in explicit production guards and mocked configuration tests; they are not credentials and the local emulator path does not contact them. Optional authorized cloud utilities require the Google Cloud CLI on PATH; no workstation-specific path is distributed.
+Never publish `.runtime/`, credentials, weights, bundles, photographs, databases or restricted datasets. `.gitignore` erases no history. Sanitized publication history remains separate from retained original development history. No production deployment, migration, retraining, promotion or recurring service is introduced.

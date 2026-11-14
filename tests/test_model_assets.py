@@ -82,7 +82,9 @@ class ModelBundleTests(unittest.TestCase):
             with self.subTest(name=name,symlink=symlink):
                 bad=self.root/'bad.zip'
                 with zipfile.ZipFile(bad,'w') as stream:
-                    for key,value in contents.items(): stream.writestr(key,value)
+                    for key,value in contents.items():
+                        if symlink and key==name: continue
+                        stream.writestr(key,value)
                     info=zipfile.ZipInfo(name)
                     if symlink:
                         info.create_system=3
@@ -90,6 +92,16 @@ class ModelBundleTests(unittest.TestCase):
                     stream.writestr(info,b'bad')
                 with self.assertRaises(ValueError): assets.install_bundle(bad,self.target)
                 self.assertFalse((self.target/'models/lettuce').exists())
+
+    def test_duplicate_archive_member_rejected(self):
+        self.export()
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore',UserWarning)
+            with zipfile.ZipFile(self.bundle,'a') as stream:
+                stream.writestr('models/lettuce/champion.json',b'duplicate')
+        with self.assertRaisesRegex(ValueError,'Duplicate'):
+            assets.install_bundle(self.bundle,self.target)
 
     def test_tampered_archive_digest_and_missing_notice_rejected(self):
         self.export()

@@ -1,4 +1,4 @@
-﻿"""Local runtime isolation, ownership and atomic persistence regressions."""
+"""Local runtime isolation, ownership and atomic persistence regressions."""
 import json
 import socket
 from pathlib import Path
@@ -136,7 +136,20 @@ def test_local_app_real_owner_org_and_session_restart(monkeypatch):
     process=launch(); first=None; second=None
     try:
         first=local.build(mode='DEMO')
+        original_audit=first.state.service.audit
+        def interrupted_audit(*args,**kwargs): raise RuntimeError('Simulated failure before owner transaction commit')
+        monkeypatch.setattr(first.state.service,'audit',interrupted_audit)
+        with pytest.raises(RuntimeError): runtime.bootstrap_owner(first)
+        with first.state.service.db.transaction() as db:
+            assert db.execute('SELECT COUNT(*) FROM users').fetchone()[0]==0
+        from firebase_admin import auth
+        orphan=auth.get_user_by_email('runtime-owner@example.test',app=first.state.service.gateway.app)
+        monkeypatch.setattr(first.state.service,'audit',original_audit)
+        monkeypatch.setenv('HYDRO_LOCAL_OWNER_EMAIL','runtime-owner@example.test')
+        monkeypatch.setenv('HYDRO_LOCAL_OWNER_PASSWORD',password)
         assert runtime.bootstrap_owner(first)
+        recovered=auth.get_user_by_email('runtime-owner@example.test',app=first.state.service.gateway.app)
+        assert recovered.uid==orphan.uid
         with TestClient(first,base_url=runtime.ORIGIN) as client:
             session=client.get('/api/session').json()
             signed=runtime.auth_request('/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key',dict(email='runtime-owner@example.test',password=password,returnSecureToken=True))
@@ -147,7 +160,12 @@ def test_local_app_real_owner_org_and_session_restart(monkeypatch):
             org=client.post('/api/admin/organizations',json={'name':'Independent local institution'},headers={'X-CSRF-Token':csrf})
             assert org.status_code==201,org.text
             assert len(client.get('/api/signup-institutions').json()['organizations'])==2
-            assert 'LOCAL / DEMO' in client.get('/organizations').text
+            page=client.get('/organizations').text
+            assert 'LOCAL / DEMO' in page
+            assert '/local-account.js' in page
+            account_script=client.get('/local-account.js').text
+            assert 'only signup institution' not in account_script
+            assert 'local owner can add an institution below' in account_script
             assert client.get('/health/local').json()['mode']=='DEMO'
             cookies=dict(client.cookies)
             owner_uid=signed['localId']
@@ -169,3 +187,35 @@ def test_local_app_real_owner_org_and_session_restart(monkeypatch):
         if process.poll() is None:stop(process)
         # This exact generated test namespace is owned by this test only.
         if state.parent==runtime.ROOT/'.runtime' and state.name.startswith('local-tests-'):shutil.rmtree(state)
+
+def test_snapshot_rejects_mismatched_identity_without_overwriting_previous(tmp_path,monkeypatch):
+    import sqlite3
+    from contextlib import closing
+    from src.local_setup import runtime
+    state=tmp_path/'local';runtime.claim_storage(state);(state/'auth').mkdir()
+    with closing(sqlite3.connect(state/'auth/auth.sqlite3')) as db:
+        db.execute('CREATE TABLE firebase_identities(uid TEXT,user_id TEXT)')
+        db.execute('INSERT INTO firebase_identities VALUES(?,?)',('bound-uid','account'));db.commit()
+    runtime.atomic_json(state/'identity-state.json',{'previous':'preserved'})
+    observed=[]
+    def export(path):
+        observed.append(path)
+        # Backup must already have completed when the final provider export starts.
+        assert not list(state.glob('.snapshot-*'))
+        return {'users':[]} if 'batchGet' in path else {}
+    monkeypatch.setattr(runtime,'auth_request',export)
+    with pytest.raises(ValueError,match='snapshot changed'):runtime.snapshot_auth(state)
+    assert json.loads((state/'identity-state.json').read_text())=={'previous':'preserved'}
+    assert len(observed)==2
+
+def test_start_requires_exact_completed_installation_profile(tmp_path):
+    import hashlib
+    from src.local_setup.runtime import require_installation
+    profile={'version':1,'mode':'FULL','device':'cpu'}
+    path=tmp_path/'runtime-profile.json';path.write_text(json.dumps(profile),encoding='utf-8')
+    with pytest.raises(ValueError,match='not completed'):require_installation(path,profile)
+    marker={'version':1,'mode':'FULL','device':'cpu','profile_sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+    atomic_json(tmp_path/'installation.json',marker)
+    require_installation(path,profile)
+    path.write_text(json.dumps(dict(profile,device='cuda')),encoding='utf-8')
+    with pytest.raises(ValueError,match='differs'):require_installation(path,dict(profile,device='cuda'))

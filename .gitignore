@@ -42,6 +42,7 @@ configs/firebase-web.json
 configs/*private*.json
 
 # Research model binaries and archives are not part of the source publication.
+.model-bundles/
 *.safetensors
 *.pt
 *.pth

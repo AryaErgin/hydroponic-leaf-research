@@ -108,6 +108,19 @@ def load_profile(path):
     return profile
 
 
+def require_installation(profile_path,profile):
+    import hashlib
+    profile_path=Path(profile_path)
+    marker=profile_path.parent/'installation.json'
+    if not marker.is_file():
+        raise ValueError('Local setup has not completed successfully. Run setup.ps1 and resolve its diagnostics before starting.')
+    completed=json.loads(marker.read_text(encoding='utf-8-sig'))
+    digest=hashlib.sha256(profile_path.read_bytes()).hexdigest()
+    if (completed.get('version')!=1 or completed.get('profile_sha256')!=digest or
+        completed.get('mode')!=profile['mode'] or completed.get('device')!=profile.get('device','cpu')):
+        raise ValueError('Runtime profile differs from the completed setup. Run setup.ps1 again before starting.')
+
+
 def require_password(password):
     if not 15 <= len(password) <= 128: raise ValueError('Choose a password with 15 to 128 characters.')
     return password
@@ -131,16 +144,27 @@ def _snapshot_auth(path=STATE):
     """
     import base64
     path=Path(path)
-    accounts=auth_request(f'/identitytoolkit.googleapis.com/v1/projects/{PROJECT}/accounts:batchGet?maxResults=-1')
-    config=auth_request(f'/emulator/v1/projects/{PROJECT}/config')
-    backups={}
+    backups={}; bound=set()
     for dbpath in sorted(path.rglob('*.sqlite3')):
         if '.snapshot-' in dbpath.name: continue
         temp=path/('.snapshot-'+uuid4().hex)
         try:
             with closing(sqlite3.connect(dbpath)) as source, closing(sqlite3.connect(temp)) as target: source.backup(target)
             backups[dbpath.relative_to(path).as_posix()]=base64.b64encode(temp.read_bytes()).decode('ascii')
+            if dbpath.relative_to(path).as_posix()=='auth/auth.sqlite3':
+                with closing(sqlite3.connect(temp)) as captured:
+                    tables={row[0] for row in captured.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                    if 'firebase_identities' in tables:
+                        bound={row[0] for row in captured.execute('SELECT uid FROM firebase_identities')}
         finally: temp.unlink(missing_ok=True)
+    # Registration creates its emulator identity before committing its SQLite binding.
+    # Back up SQLite first, then export Auth, so concurrent registration cannot add
+    # a captured binding whose identity was absent from an older export.
+    accounts=auth_request(f'/identitytoolkit.googleapis.com/v1/projects/{PROJECT}/accounts:batchGet?maxResults=-1')
+    config=auth_request(f'/emulator/v1/projects/{PROJECT}/config')
+    exported={user['localId'] for user in accounts.get('users',[])}
+    if not bound.issubset(exported):
+        raise ValueError('Identity snapshot changed during export; existing atomic snapshot was preserved.')
     atomic_json(path/'identity-state.json',dict(version=1,accounts=accounts,config=config,sqlite_backups=backups))
 
 
@@ -193,20 +217,38 @@ def bootstrap_owner(app):
         if password != getpass('Repeat local owner password: '): raise ValueError('Passwords did not match.')
     require_password(password)
     from firebase_admin import auth
-    from types import SimpleNamespace
-    identity=auth.create_user(email=email,password=password,email_verified=True,app=service.gateway.app)
-    signed=auth_request('/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key',
-        dict(email=email,password=password,returnSecureToken=True))
-    password=None
-    with service.db.transaction() as db: org=db.execute('SELECT org_id FROM public_signup WHERE singleton=1').fetchone()[0]
-    _,registered=service.register(SimpleNamespace(id_token=signed['idToken'],username='local-owner',display_name='Local owner',requested_org_id=org),'')
+    from ..auth_preview.service import now_iso
+    recovered_orphan=False
+    try:
+        identity=auth.get_user_by_email(email,app=service.gateway.app)
+        recovered_orphan=True
+    except auth.UserNotFoundError:
+        identity=auth.create_user(email=email,password=password,email_verified=True,app=service.gateway.app)
+    # Recovery never resets an existing password, changes provider proof, or
+    # promotes an existing backend user. The operator must prove possession of
+    # this exact selected reserved-domain identity with its unchanged password.
+    if identity.disabled or not identity.email_verified or identity.email.casefold()!=email.casefold():
+        raise ValueError('The selected local identity is not an eligible verified bootstrap identity. No account was changed.')
+    try:
+        signed=auth_request('/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key',
+            dict(email=email,password=password,returnSecureToken=True))
+    except Exception:
+        raise ValueError('Could not prove the selected local identity with that password. Its password and access were unchanged.') from None
+    finally: password=None
+    if signed.get('localId')!=identity.uid:
+        raise ValueError('Local bootstrap identity proof did not match; no access was changed.')
+    # One SQLite commit makes owner, UID binding and audit inseparable. A failure
+    # leaves zero backend users, so the same operator can safely retry the orphan.
     with service.db.transaction() as db:
-        user_id=registered['user']['id']
-        binding=db.execute('SELECT user_id FROM firebase_identities WHERE uid=?',(identity.uid,)).fetchone()
-        if not binding or binding['user_id']!=user_id: raise ValueError('Local UID binding failed.')
-        db.execute("UPDATE users SET status='ACTIVE',role='PLATFORM_OWNER',org_id=?,version=version+1 WHERE id=?",(org,user_id))
-        service.revoke(db,user_id)
-        service.audit(db,'local-operator','local_owner_bootstrapped',user_id,org_id=org,synthetic_identity=True)
+        if db.execute('SELECT 1 FROM users LIMIT 1').fetchone():
+            raise ValueError('Local accounts appeared during bootstrap. Automatic privilege changes are refused.')
+        org=db.execute('SELECT org_id FROM public_signup WHERE singleton=1').fetchone()[0]
+        user_id=str(uuid4());created=now_iso()
+        db.execute('INSERT INTO users(id,username,display_name,password_hash,status,role,requested_org_id,org_id,created_at,email,email_verified_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+            (user_id,'local-owner','Local owner','FIREBASE_MANAGED','ACTIVE','PLATFORM_OWNER',org,org,created,identity.email,created))
+        db.execute('INSERT INTO firebase_identities(uid,user_id) VALUES(?,?)',(identity.uid,user_id))
+        service.audit(db,'local-operator','local_owner_bootstrapped',user_id,org_id=org,
+            synthetic_identity=True,recovered_orphan=recovered_orphan)
     snapshot_auth()
     print('Local owner created. Sign in using your chosen .test email and password. No email was sent.',flush=True)
     return True
@@ -244,12 +286,15 @@ def run(profile,initialize=False,no_browser=False):
         def request_stop(*_):
             stop.set()
             if server: server.should_exit=True
+            else: raise KeyboardInterrupt
         for sig in (signal.SIGINT,signal.SIGTERM):
             previous[sig]=signal.signal(sig,request_stop)
         try:
             wait_auth(process); import_auth()
             os.environ['FIREBASE_AUTH_EMULATOR_HOST']='127.0.0.1:9099'
             os.environ['HYDRO_LOCAL_MODE']=profile['mode']
+            os.environ['HF_HUB_OFFLINE']='1'
+            os.environ['HF_HUB_DISABLE_TELEMETRY']='1'
             from .app import build
             app=build(mode=profile['mode'],device=profile.get('device','cpu')); bootstrap_owner(app)
             snapshot_auth()
@@ -303,7 +348,10 @@ def main():
     parser.add_argument('--profile',default=str(ROOT/'.runtime/runtime-profile.json'))
     parser.add_argument('--no-browser',action='store_true')
     args=parser.parse_args()
-    try: run(load_profile(args.profile),args.action=='initialize',args.no_browser)
+    try:
+        profile=load_profile(args.profile)
+        if args.action=='start': require_installation(args.profile,profile)
+        run(profile,args.action=='initialize',args.no_browser)
     except KeyboardInterrupt: return 0
     except ValueError as error: print('ERROR: '+str(error),file=sys.stderr); return 1
     except Exception as error:

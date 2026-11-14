@@ -1,5 +1,6 @@
 """Install the isolated local application; no cloud credentials or services."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -46,7 +47,7 @@ def write_profile(path,*,python,node,tools,mode,device):
 
 def execute(args,*,cwd=ROOT,capture=False):
     result=subprocess.run([str(arg) for arg in args],cwd=cwd,text=True,
-        stdout=subprocess.PIPE if capture else None,stderr=subprocess.PIPE if capture else None)
+        stdout=subprocess.PIPE if capture else None,stderr=subprocess.PIPE if capture else subprocess.STDOUT)
     if result.returncode:
         raise ValueError('Installation step failed: '+Path(str(args[0])).name+'. Your existing data was preserved; correct the error above and retry.')
     return result.stdout.strip() if capture else None
@@ -58,8 +59,9 @@ def main(argv=None):
     parser.add_argument('--device',choices=('auto','cpu','cuda'),default='auto')
     args=parser.parse_args(argv)
     try:
-        from .runtime import guard_environment
+        from .runtime import guard_environment, available_ports
         guard_environment()
+        available_ports()
         node=shutil.which('node');npm=shutil.which('npm.cmd' if os.name=='nt' else 'npm')
         if not node or not npm:raise ValueError('Install Node.js 22 or 24 with npm; then reopen the terminal.')
         validate_prerequisites(sys.version_info,execute([node,'--version'],capture=True))
@@ -82,7 +84,11 @@ def main(argv=None):
             execute([python,'-m','src.local_setup.model_assets','install','--bundle',bundle])
             execute([python,'-c',f'import torch; x=torch.ones(2,2,device={device!r}); assert float((x@x).sum())==8; print("PyTorch: OK ({device})")'])
         print('Installing pinned local Auth emulator and building browser SDK...',flush=True)
-        execute([npm,'--prefix',ROOT/'.runtime/firebase-tools','install','--no-save','--no-package-lock','--no-audit','--no-fund',f'firebase-tools@{TOOLS_VERSION}'])
+        tools=ROOT/'.runtime/firebase-tools'
+        tools.mkdir(parents=True,exist_ok=True)
+        for filename in ('package.json','package-lock.json'):
+            shutil.copyfile(ROOT/'configs/runtime/firebase-tools'/filename,tools/filename)
+        execute([npm,'--prefix',tools,'ci','--no-audit','--no-fund'])
         client=ROOT/'src/firebase_preview/client'
         execute([npm,'ci','--no-audit','--no-fund'],cwd=client)
         execute([node,client/'node_modules/esbuild/bin/esbuild','sdk-entry.js','--bundle','--minify','--format=esm','--platform=browser','--outfile=../static/firebase-sdk.js'],cwd=client)
@@ -91,6 +97,9 @@ def main(argv=None):
         write_profile(profile,python=python,node=node,tools=ROOT/'.runtime/firebase-tools/node_modules/firebase-tools',mode='DEMO' if args.demo else 'FULL',device=device)
         execute([python,'-m','src.local_setup.runtime','initialize','--profile',profile])
         execute([python,'-m','src.local_setup.diagnostics','--profile',profile,'--installation'])
+        from .runtime import atomic_json
+        atomic_json(ROOT/'.runtime/installation.json',dict(version=1,mode='DEMO' if args.demo else 'FULL',
+            device=device,profile_sha256=hashlib.sha256(profile.read_bytes()).hexdigest()))
         print('READY: '+('DEMO only; learned segmentation unavailable.' if args.demo else 'FULL model installation verified.')+' Run .\\start.ps1.',flush=True)
         return 0
     except (ValueError,OSError) as error:

@@ -1,2 +1,3 @@
 # Qualified Python 3.11 local application and verification tools.
+-c requirements-local-constraints.txt
 -r requirements-dev.txt
