@@ -95,7 +95,7 @@ def main(argv=None):
             return {'installed':True,'real_start_probe':'PASSED','running':False}
     def database_check():
         runtime.claim_storage()
-        databases=list(runtime.STATE.rglob('*.sqlite3'))
+        databases=runtime.local_database_paths()
         assert databases,'Run setup.ps1 to initialize the local owner.'
         for path in databases:
             with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True)) as db:

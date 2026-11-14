@@ -136,6 +136,19 @@ def snapshot_auth(path=STATE):
     with _SNAPSHOT_LOCK: return _snapshot_auth(path)
 
 
+def local_database_paths(path=STATE):
+    """Known SQLite locations only: never traverse uploads or media hashes.
+
+    Media uses extended Windows paths; recursive scandir of those directories
+    through an ordinary Path can fail at MAX_PATH and is unnecessary for backup.
+    """
+    path=Path(path)
+    found=list((path/'auth').glob('*.sqlite3'))
+    found.extend((path/'science').glob('*.sqlite3'))
+    found.extend((path/'science/organizations').glob('*/hydroponic.sqlite3'))
+    return sorted(found)
+
+
 def _snapshot_auth(path=STATE):
     """Use the same account/config export REST API as pinned firebase-tools HubExport.
 
@@ -145,7 +158,7 @@ def _snapshot_auth(path=STATE):
     import base64
     path=Path(path)
     backups={}; bound=set()
-    for dbpath in sorted(path.rglob('*.sqlite3')):
+    for dbpath in local_database_paths(path):
         if '.snapshot-' in dbpath.name: continue
         temp=path/('.snapshot-'+uuid4().hex)
         try:

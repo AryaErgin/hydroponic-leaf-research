@@ -30,7 +30,7 @@ def test_claim_reuses_only_own_storage(tmp_path):
 
 def test_lock_excludes_second_launcher_and_releases(tmp_path):
     with RuntimeLock(tmp_path/'launcher.lock'):
-        with pytest.raises(ValueError, match='already'): 
+        with pytest.raises(ValueError, match='already'):
             with RuntimeLock(tmp_path/'launcher.lock'): pass
     with RuntimeLock(tmp_path/'launcher.lock'): pass
 

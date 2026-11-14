@@ -100,7 +100,7 @@ def main(argv=None):
         from .runtime import atomic_json
         atomic_json(ROOT/'.runtime/installation.json',dict(version=1,mode='DEMO' if args.demo else 'FULL',
             device=device,profile_sha256=hashlib.sha256(profile.read_bytes()).hexdigest()))
-        print('READY: '+('DEMO only; learned segmentation unavailable.' if args.demo else 'FULL model installation verified.')+' Run .\\start.ps1.',flush=True)
+        print('READY: '+('DEMO only; learned segmentation was not verified.' if args.demo else 'FULL model installation verified.')+' Run .\\start.ps1.',flush=True)
         return 0
     except (ValueError,OSError) as error:
         print('ERROR: '+str(error),file=sys.stderr);return 1

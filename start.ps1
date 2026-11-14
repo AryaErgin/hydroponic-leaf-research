@@ -1,14 +1,14 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param([switch]$NoBrowser)
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 $profilePath = Join-Path $projectRoot '.runtime/runtime-profile.json'
 if (-not (Test-Path -LiteralPath $profilePath)) { throw 'Run .\setup.ps1 first in this clone.' }
-$profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
+$profile = Get-Content -LiteralPath $profilePath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($profile.version -ne 1) { throw 'Unsupported runtime profile; run setup.ps1 again.' }
 $installationPath = Join-Path $projectRoot '.runtime/installation.json'
 if (-not (Test-Path -LiteralPath $installationPath)) { throw 'Setup has not completed its diagnostics. Run setup.ps1 successfully before starting.' }
-$installation = Get-Content -LiteralPath $installationPath -Raw | ConvertFrom-Json
+$installation = Get-Content -LiteralPath $installationPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $profileHash = (Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($installation.version -ne 1 -or $installation.profile_sha256 -ne $profileHash -or $installation.mode -ne $profile.mode -or $installation.device -ne $profile.device) {
     throw 'Runtime profile differs from the completed setup. Run setup.ps1 again before starting.'
