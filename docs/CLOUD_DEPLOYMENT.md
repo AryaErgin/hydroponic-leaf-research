@@ -94,6 +94,17 @@ An offline dry run authenticates nowhere and creates no cloud resources:
 
 The supplied example number is not a verified project identity. The real wizard obtains it from Google before provisioning.
 
+To run the focused local deployment tests without cloud credentials:
+
+```powershell
+py -3.11 -m venv .venv-cloud
+.\.venv-cloud\Scripts\python.exe -m pip install -r requirements-local.txt
+$cloudTests = Get-ChildItem tests/test_cloud*.py | Select-Object -ExpandProperty FullName
+& .\.venv-cloud\Scripts\python.exe -m pytest @cloudTests -q --tb=short --assert=plain
+```
+
+The tests use controlled provider responses; they do not deploy. The isolated Firestore emulator acceptance is a separate adapter check, not proof of Google IAM, public GCS policies or Cloud Run operation. The locked Firebase browser SDK was actually built on both Windows and WSL Linux with identical output. Linux web dependencies/server imports and the pinned CPU wheel were separately checked; the exact Docker image and full live cloud path remain unverified.
+
 Locally verified: configuration/project/credential guards, protected-project rejection, explicit consent, clean-source/model packaging, IAM plans, API field restrictions, interrupted-operation/resume and rollback logic with injected responses, owner bootstrap/institution UI contracts, legacy compatibility, and real Firestore emulator namespace isolation. These tests make no cloud/email/container success claim. Native Docker is unavailable in the validation environment; WSL Docker socket access was denied, and system permissions were not altered.
 
 Before declaring **your cloud installation** ready, use isolated synthetic records and verify:

@@ -167,4 +167,3 @@ def test_email_privacy_is_enabled_by_narrow_auth_update():
     patch=next(call for call in client.calls if call[0]=='PATCH')
     assert patch[2]['emailPrivacyConfig']=={'enableImprovedEmailPrivacy':True}
     assert 'emailPrivacyConfig.enableImprovedEmailPrivacy' in parse_qs(urlsplit(patch[1]).query)['updateMask'][0]
-

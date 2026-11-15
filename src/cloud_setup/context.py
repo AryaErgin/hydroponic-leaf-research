@@ -37,6 +37,10 @@ def _git(root,*args):
 
 
 def _source(root):
+    changed=_git(root,'diff','--name-only','HEAD').decode().splitlines()
+    untracked=_git(root,'ls-files','--others','--exclude-standard').decode().splitlines()
+    if any(runtime_source_path(name) for name in changed+untracked):
+        raise ValueError('Commit reviewed runtime changes before packaging; uncommitted code will not silently be replaced by an older release.')
     commit=_git(root,'rev-parse','HEAD').decode().strip()
     names=[name for name in _git(root,'ls-tree','-r','--name-only','HEAD').decode().splitlines() if runtime_source_path(name)]
     required=REQUIREMENTS|INFRA|{'src/cloud_instance/runtime.py','configs/runtime/model-assets.json'}

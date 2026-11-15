@@ -17,3 +17,16 @@ def test_forged_self_hashed_receipt_cannot_authorize_any_source(tmp_path):
     (tmp_path/'private-key.json').write_bytes(payload)
     (tmp_path/'context-manifest.json').write_text(json.dumps({'files':{'private-key.json':{'sha256':hashlib.sha256(payload).hexdigest()}}}))
     with pytest.raises(ValueError):verify_context(tmp_path)
+
+
+@pytest.mark.parametrize('tracked',['src/cloud_instance/runtime.py',''])
+def test_packager_rejects_uncommitted_runtime_source_instead_of_silently_shipping_old_code(tmp_path,monkeypatch,tracked):
+    from src.cloud_setup import context
+    calls=[]
+    def git(root,*args):
+        calls.append(args)
+        if args==('diff','--name-only','HEAD'):return (tracked+'\n').encode()
+        if args==('ls-files','--others','--exclude-standard'):return b'src/cloud_instance/uncommitted.py\n' if not tracked else b''
+        raise AssertionError('Dirty runtime source must fail before reading source contents')
+    monkeypatch.setattr(context,'_git',git)
+    with pytest.raises(ValueError,match='Commit'):context._source(tmp_path)

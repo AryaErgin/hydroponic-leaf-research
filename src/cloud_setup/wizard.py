@@ -193,10 +193,12 @@ def main(argv=None):
         bundle=Path(args.model_bundle or input('Authorized research-model-exp006.zip path: ').strip().strip('"')).expanduser().resolve()
         _read_bundle(bundle,_load_policy())
         print('Authorized model bundle hashes/config/provenance verified locally; nothing uploaded yet.')
+        print('License: noncommercial research/evaluation terms and retained notices; read https://github.com/NVlabs/SegFormer/blob/master/LICENSE before consent.')
         if input('Confirm you are authorized to use and privately upload this research/evaluation model under its retained license [yes/no]: ').strip().lower()!='yes':
             raise ValueError('Model use/upload was not authorized; setup stopped.')
         head=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()
         context=ROOT/'.cloud/build-contexts'/head[:16]
+        print('Preparing the verified committed-source/model context before any cloud write...')
         receipt=create_context(bundle,context)
         operator_python=_owner_tools()
         save()

@@ -5,7 +5,7 @@ WORKDIR /client
 COPY src/firebase_preview/client/package.json src/firebase_preview/client/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY src/firebase_preview/client/sdk-entry.js ./
-RUN node node_modules/esbuild/bin/esbuild sdk-entry.js --bundle --minify --format=esm --platform=browser --outfile=firebase-sdk.js
+RUN ./node_modules/.bin/esbuild sdk-entry.js --bundle --minify --format=esm --platform=browser --outfile=firebase-sdk.js
 
 FROM python:3.11.14-slim-bookworm@sha256:65a93d69fa75478d554f4ad27c85c1e69fa184956261b4301ebaf6dbb0a3543d AS runtime
 ENV PYTHONUNBUFFERED=1 \

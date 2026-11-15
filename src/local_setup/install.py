@@ -91,7 +91,8 @@ def main(argv=None):
         execute([npm,'--prefix',tools,'ci','--no-audit','--no-fund'])
         client=ROOT/'src/firebase_preview/client'
         execute([npm,'ci','--no-audit','--no-fund'],cwd=client)
-        execute([node,client/'node_modules/esbuild/bin/esbuild','sdk-entry.js','--bundle','--minify','--format=esm','--platform=browser','--outfile=../static/firebase-sdk.js'],cwd=client)
+        esbuild=client/'node_modules/.bin'/('esbuild.cmd' if os.name=='nt' else 'esbuild')
+        execute([esbuild,'sdk-entry.js','--bundle','--minify','--format=esm','--platform=browser','--outfile=../static/firebase-sdk.js'],cwd=client)
         execute([python,'scripts/build_user_guide.py','--check'])
         profile=ROOT/'.runtime/runtime-profile.json'
         write_profile(profile,python=python,node=node,tools=ROOT/'.runtime/firebase-tools/node_modules/firebase-tools',mode='DEMO' if args.demo else 'FULL',device=device)

@@ -90,6 +90,60 @@ def test_exact_verified_pending_bootstrap_atomic_and_idempotent(service):
     with pytest.raises(ValueError,match='already'):bootstrap_owner(service,other)
 
 
+def changed_owner_email(service):
+    from src.cloud_instance.service import bootstrap_owner
+    identity=pending(service)
+    owner=bootstrap_owner(service,identity)
+    with service.db.transaction() as db:
+        db.execute('UPDATE users SET email=?,email_verified_at=?,version=version+1 WHERE id=?',
+            ('new-owner@example.test','new-provider-proof',owner['id']))
+        version=db.raw('users',owner['id'])['version']
+    return dict(identity,email='new-owner@example.test'),owner,version
+
+
+def test_same_owner_uid_new_verified_email_updates_contact_only_and_is_idempotent(service):
+    from src.cloud_instance.service import bootstrap_owner
+    identity,owner,version=changed_owner_email(service)
+    refreshed=bootstrap_owner(service,identity)
+    assert refreshed['role']=='PLATFORM_OWNER' and refreshed['status']=='ACTIVE'
+    assert refreshed['version']==version
+    with service.db.transaction() as db:
+        assert db.raw('meta','independent-owner')['email']=='new-owner@example.test'
+        contact_events=[row for row in db.scan('audit') if row['action']=='independent_owner_contact_updated']
+        assert len(contact_events)==1
+        before=deepcopy(service.db.rows)
+    assert bootstrap_owner(service,identity)==refreshed
+    assert service.db.rows==before
+
+
+def test_owner_previous_email_recycled_by_different_uid_never_grants_ownership(service):
+    from src.cloud_instance.service import bootstrap_owner
+    current,owner,version=changed_owner_email(service)
+    recycled=pending(service,'recycled-uid','owner@example.test')
+    before=deepcopy(service.db.rows)
+    with pytest.raises(ValueError,match='already'):bootstrap_owner(service,recycled)
+    assert service.db.rows==before
+    assert bootstrap_owner(service,current)['id']==owner['id']
+
+
+def test_owner_contact_update_rolls_back_with_audit_failure(service):
+    from src.cloud_instance.service import bootstrap_owner
+    identity,owner,version=changed_owner_email(service)
+    before=deepcopy(service.db.rows)
+    service.audit=lambda *args,**kwargs:(_ for _ in ()).throw(RuntimeError('contact audit failed'))
+    with pytest.raises(RuntimeError,match='contact audit failed'):bootstrap_owner(service,identity)
+    assert service.db.rows==before
+
+
+def test_owner_contact_retry_does_not_reactivate_suspended_owner(service):
+    from src.cloud_instance.service import bootstrap_owner
+    identity,owner,version=changed_owner_email(service)
+    with service.db.transaction() as db:db.update('users',owner['id'],dict(status='SUSPENDED'))
+    before=deepcopy(service.db.rows)
+    with pytest.raises(ValueError,match='operator review'):bootstrap_owner(service,identity)
+    assert service.db.rows==before
+
+
 @pytest.mark.parametrize('change',[dict(email_verified=False),dict(email='mismatch@example.test'),dict(uid='missing')])
 def test_bootstrap_rejects_unverified_mismatched_or_unregistered(service,change):
     from src.cloud_instance.service import bootstrap_owner

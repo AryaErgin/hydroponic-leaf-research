@@ -164,6 +164,8 @@ def test_context_policy_trust_anchor_must_equal_committed_source(monkeypatch, tm
     monkeypatch.setattr(context.model_assets, 'POLICY_PATH', altered)
     names = sorted(context.REQUIREMENTS | context.INFRA | {'src/cloud_instance/runtime.py','configs/runtime/model-assets.json'})
     def fake_git(root, *args):
+        if args in (('diff','--name-only','HEAD'),('ls-files','--others','--exclude-standard')):
+            return b''
         if args == ('rev-parse', 'HEAD'):
             return ('a'*40).encode()
         if args == ('ls-tree', '-r', '--name-only', 'HEAD'):
