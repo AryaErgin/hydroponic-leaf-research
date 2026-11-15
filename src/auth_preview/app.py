@@ -246,6 +246,8 @@ def create_app(config:Config,*,service_override=None):
                 pending=db.execute("SELECT count(*) FROM email_notifications WHERE user_id=? AND status='pending'",(user['id'],)).fetchone()[0] if user else 0
                 payload['email_delivery']={'pending_security_notifications':pending,
                     'message':'Security notification delivery is pending. Retry delivery or contact the operator.' if pending else None}
+            from ..cloud_instance.config import IndependentFirebaseConfig
+            if isinstance(config,IndependentFirebaseConfig):payload['independent_cloud']=True
             result=JSONResponse(payload)
             return cookie(result,new_token) if new_token else result
 

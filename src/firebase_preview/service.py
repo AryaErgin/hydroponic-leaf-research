@@ -12,9 +12,10 @@ from ..auth_preview.service import Service,fail,now_iso,public_user
 class FirebaseService(Service):
     credential_authority='firebase-v1'
 
-    def __init__(self,config,gateway):
+    def __init__(self,config,gateway,*,database=None):
         self.config=config;self.gateway=gateway
-        if config.firestore_project:
+        if database is not None:self.db=database
+        elif config.firestore_project:
             from ..auth_preview.firestore_database import FirestoreDatabase
             self.db=FirestoreDatabase(config,credential_authority=self.credential_authority)
         else:self.db=create_database(config)
@@ -75,10 +76,7 @@ class FirebaseService(Service):
             if binding:
                 user=db.execute('SELECT * FROM users WHERE id=?',(binding['user_id'],)).fetchone()
                 return self._issue(db,data.id_token,identity,user,old_token)
-            public=db.execute('SELECT org_id FROM public_signup WHERE singleton=1').fetchone()
-            org=db.execute('SELECT * FROM organizations WHERE id=? AND enabled=1',(data.requested_org_id,)).fetchone()
-            if not public or public['org_id']!=data.requested_org_id or not org:
-                fail(400,'Select an institution currently accepting registration.')
+            self.registration_organization(db,data.requested_org_id)
             id=str(uuid4())
             try:
                 db.execute('INSERT INTO users(id,username,display_name,password_hash,status,role,requested_org_id,created_at,email,email_verified_at) VALUES(?,?,?,?,?,?,?,?,?,?)',
@@ -88,6 +86,13 @@ class FirebaseService(Service):
             self.audit(db,id,'firebase_registration',id,requested_org_id=data.requested_org_id)
             user=db.execute('SELECT * FROM users WHERE id=?',(id,)).fetchone()
             return self._issue(db,data.id_token,identity,user,old_token)
+
+    def registration_organization(self,db,requested_org_id):
+        public=db.execute('SELECT org_id FROM public_signup WHERE singleton=1').fetchone()
+        org=db.execute('SELECT * FROM organizations WHERE id=? AND enabled=1',(requested_org_id,)).fetchone()
+        if not public or public['org_id']!=requested_org_id or not org:
+            fail(400,'Select an institution currently accepting registration.')
+        return org
 
     def exchange(self,id_token,old_token):
         identity=self._identity(id_token)

@@ -48,15 +48,18 @@ class IdentityContext:
 
 def create_app(config,gateway,science_dir,*,scientific_settings=None):
     from .modes import DurableEmulatorConfig,ProductionFirebaseConfig,LIVE_PROJECT
+    from ..cloud_instance.config import IndependentFirebaseConfig
+    independent=isinstance(config,IndependentFirebaseConfig)
     production=isinstance(config,ProductionFirebaseConfig)
     # Production packaging excludes the local live-test entry point entirely.
     live=False
     accepted=(FirebaseConfig,DurableEmulatorConfig,ProductionFirebaseConfig)
-    if not production:
+    if not production and not independent:
         from .live_test import LiveTestConfig
         live=isinstance(config,LiveTestConfig)
         accepted=(*accepted,LiveTestConfig)
-    durable=isinstance(config,(DurableEmulatorConfig,ProductionFirebaseConfig))
+    accepted=(*accepted,IndependentFirebaseConfig)
+    durable=isinstance(config,(DurableEmulatorConfig,ProductionFirebaseConfig,IndependentFirebaseConfig))
     if not isinstance(config,accepted):
         raise ValueError('Use the strictly isolated Firebase evaluation configuration')
     guard=config.guard if live or durable else local_guard
@@ -64,6 +67,10 @@ def create_app(config,gateway,science_dir,*,scientific_settings=None):
     if production:
         from .production import ProductionGateway
         if not isinstance(gateway,ProductionGateway):raise ValueError('Production requires the official production Firebase gateway')
+    if independent:
+        from ..cloud_instance.gateway import IndependentGateway
+        if not isinstance(gateway,IndependentGateway) or gateway.config!=config:
+            raise ValueError('Independent cloud requires its official matching Firebase gateway')
     if not Path(science_dir).resolve().is_relative_to((config.data_dir.parent).resolve()):
         raise ValueError('Scientific fixtures must share the isolated Firebase evaluation directory')
     if durable:
@@ -71,11 +78,17 @@ def create_app(config,gateway,science_dir,*,scientific_settings=None):
             scientific_settings.firestore_database!=config.firestore_database or
             scientific_settings.data_dir.resolve()!=Path(science_dir).resolve() or
             not scientific_settings.gcs_bucket or
-            not scientific_settings.firestore_prefix.startswith('hydroponic_firebase_science_' if production else 'firebase_test_')):
+            not (scientific_settings.firestore_prefix==config.instance.science_prefix if independent else
+                scientific_settings.firestore_prefix.startswith('hydroponic_firebase_science_' if production else 'firebase_test_'))):
             raise ValueError('Durable Firebase requires explicit matching isolated scientific storage')
     elif scientific_settings is not None:
         raise ValueError('Existing local Firebase evaluation storage cannot be replaced')
-    service=FirebaseService(config,gateway)
+    if independent:
+        scientific_settings.validate()
+        if scientific_settings.cloud_instance!=config.instance:raise ValueError('Independent scientific instance manifest must match Firebase')
+        from ..cloud_instance.service import IndependentService
+        service=IndependentService(config,gateway)
+    else:service=FirebaseService(config,gateway)
     settings=scientific_settings or Settings(data_dir=Path(science_dir),closed_academic_research=False,
         firestore_prefix='firebase_local_eval')
     app=integrated_app(config,settings,account_service=service)
@@ -85,12 +98,15 @@ def create_app(config,gateway,science_dir,*,scientific_settings=None):
     app.router.routes[:]=[r for r in app.router.routes if getattr(r,'path','') not in blocked
         and not getattr(r,'path','').endswith('/recovery')]
     app.mount('/firebase-static',StaticFiles(directory=STATIC),name='firebase-static')
-    connect='https://identitytoolkit.googleapis.com https://securetoken.googleapis.com' if live or production else 'http://127.0.0.1:9099'
+    connect='https://identitytoolkit.googleapis.com https://securetoken.googleapis.com' if live or production or independent else 'http://127.0.0.1:9099'
     app.add_middleware(IdentityContext,guard=guard,connect=connect)
 
     @app.get('/health')
     def health():
         with service.db.transaction() as db:db.execute('SELECT 1')
+        if independent:return dict(status='ok',identity='independent_cloud',project=config.firestore_project,
+            auth_storage='firestore',scientific_storage='organization_scoped',
+            scientific_ready=getattr(app.state,'independent_model_status',{}).get('status')=='PASSED')
         if production:return dict(status='ok',identity='firebase_production',project=LIVE_PROJECT,
             auth_storage='firestore',production_ready=False)
         if live:return dict(status='ok',identity='google_live_test',project=LIVE_PROJECT,
@@ -108,7 +124,7 @@ def create_app(config,gateway,science_dir,*,scientific_settings=None):
         service.rate_limit('firebase-mail-intent:'+(request.client.host if request.client else 'unknown'),30,3600)
         config.require_receiving_inbox(data.email)
         return dict(allowed=True)
-    if not production:
+    if not production and not independent:
         app.add_api_route('/api/firebase/test-intent',receiving_inbox,methods=['POST'])
 
     @app.post('/api/firebase/register',status_code=201)
@@ -137,7 +153,7 @@ def create_app(config,gateway,science_dir,*,scientific_settings=None):
     @app.get('/verify-email',response_class=HTMLResponse)
     def page():
         html=(STATIC/'index.html').read_text(encoding='utf-8')
-        if production:html=html.replace('Local Firebase evaluation. Email actions use an emulator and do not send mail. No production accounts or scientific records are connected.',
+        if production or independent:html=html.replace('Local Firebase evaluation. Email actions use an emulator and do not send mail. No production accounts or scientific records are connected.',
             'Sign in with your verified account. Your institution must approve research access.')
         elif live:html=html.replace('Local Firebase evaluation. Email actions use an emulator and do not send mail. No production accounts or scientific records are connected.',
             'Google-managed email testing. Isolated local workspace; production is unchanged. Only configured receiving test inboxes may be used.')
@@ -161,7 +177,7 @@ def create_app(config,gateway,science_dir,*,scientific_settings=None):
                 return RedirectResponse(destination,status_code=303)
         from ..auth_preview.app import STATIC as AUTH_STATIC
         html=(AUTH_STATIC/'index.html').read_text(encoding='utf-8').replace('<body>','<body data-firebase="true">')
-        note=('Verified institutional research workspace.' if production else
+        note=('Verified institutional research workspace.' if production or independent else
             'Google-managed email testing. Isolated local scientific fixtures only.' if live else
             'Local Firebase emulator evaluation. No email is sent. Synthetic scientific data only.')
         html=html.replace('<!--MODE-->','<aside class="card">'+note+'</aside>')

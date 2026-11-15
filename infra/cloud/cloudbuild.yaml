@@ -1,0 +1,19 @@
+# Invoked only by guided setup after cost/target/license consent and strict
+# allowlisted source packaging. _IMAGE is this installation own AR repository.
+steps:
+  - name: gcr.io/cloud-builders/docker@sha256:dccbdf9b7877dc1b66427d769a55fe9d82c21655a88301e5eba3d0754c76d146
+    args:
+      - build
+      - --platform=linux/amd64
+      - --file=infra/cloud/Dockerfile
+      - --tag=${_IMAGE}
+      - --label=org.hydroponic.context-sha256=${_CONTEXT_SHA256}
+      - .
+images:
+  - ${_IMAGE}
+timeout: 1200s
+queueTtl: 300s
+options:
+  logging: CLOUD_LOGGING_ONLY
+# Default Cloud Build machine (no high-CPU premium). The wizard passes a unique
+# user-managed build service account and private source bucket explicitly.

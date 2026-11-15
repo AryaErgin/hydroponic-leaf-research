@@ -1,0 +1,18 @@
+# Defense in depth; the mandatory context allowlist is the primary boundary.
+.git
+**/.git
+**/__pycache__
+**/*.pyc
+**/node_modules
+.runtime
+**/.runtime
+.env
+**/.env
+*.pem
+*.key
+**/*credentials*.json
+**/*service-account*.json
+data
+experiments
+artifacts
+tests

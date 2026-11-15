@@ -25,6 +25,8 @@ class Settings:
     organization_id: str | None = None
     # Explicit local hardware selection; production remains CPU by default.
     inference_device: str = 'cpu'
+    # An explicit validated manifest enables independent cloud instances only.
+    cloud_instance: object | None = None
 
     @classmethod
     def from_env(cls):
@@ -47,7 +49,11 @@ class Settings:
             raise ValueError('Invalid upload/image limits')
         if self.auth_token is not None and len(self.auth_token)<32:
             raise ValueError('HYDRO_AUTH_TOKEN must have at least 32 characters')
-        if self.firestore_project and self.firestore_project!='hydroponic-leaf-research-aryae':raise ValueError('Firestore must use the dedicated Hydroponic project')
+        if self.cloud_instance is not None:
+            from ..cloud_instance.config import CloudInstanceConfig
+            if not isinstance(self.cloud_instance,CloudInstanceConfig):raise ValueError('Explicit cloud instance manifest required')
+            self.cloud_instance.validate_settings(self)
+        elif self.firestore_project and self.firestore_project!='hydroponic-leaf-research-aryae':raise ValueError('Firestore must use the dedicated Hydroponic project')
         import re
         if not re.fullmatch(r'[a-zA-Z0-9_-]{1,80}',self.firestore_prefix):raise ValueError('Invalid Firestore collection prefix')
         if self.firestore_project and self.database_url:raise ValueError('Choose one metadata backend')

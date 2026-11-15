@@ -46,11 +46,11 @@ class Result:
 class FirestoreDatabase:
     durable=True
 
-    def __init__(self,config,credential_authority='legacy-v1'):
+    def __init__(self,config,credential_authority='legacy-v1',*,client=None):
         from google.cloud import firestore
         if credential_authority not in ('legacy-v1','firebase-v1'):
             raise ValueError('Unsupported credential authority')
-        self.client=firestore.Client(project=config.firestore_project,database=config.firestore_database)
+        self.client=client if client is not None else firestore.Client(project=config.firestore_project,database=config.firestore_database)
         self.prefix=config.firestore_prefix
         self.credential_authority=credential_authority
         try:

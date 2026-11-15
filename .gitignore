@@ -2,6 +2,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .runtime/
+.cloud/
+.venv-cloud/
 artifacts/auth_preview_001/
 node_modules/
 src/firebase_preview/static/firebase-sdk.js

@@ -48,6 +48,24 @@ Checks cover Python/dependencies, Node, the real Auth emulator, SQLite integrity
 
 See [Development](docs/DEVELOPMENT.md) for tests, rights, WSL/Linux, backups and troubleshooting. This setup does not deploy or migrate production.
 
+## Deploy Your Own Cloud Instance
+
+Use **your own dedicated Google Cloud project**, Google account and billing account. Install Python 3.11 x64, Git and [Google Cloud CLI](https://cloud.google.com/sdk/docs/install), then run:
+
+```powershell
+.\cloud-setup.ps1
+```
+
+The guided wizard checks the authorized model bundle, signs into a separate gcloud configuration, selects/creates your project with explicit consent, shows costs, provisions private storage and durable accounts, builds the real CPU model container, deploys Cloud Run, and guides your verified owner-account bootstrap. It never imports this project's production users or research data. Cloud Run defaults to **zero minimum / one maximum instance**. Billing and model-upload consent are required; budget alerts are not spending caps.
+
+For a completely offline preview:
+
+```powershell
+.\cloud-setup.ps1 -PlanOnly -ProjectId your-own-research-project -ProjectNumber 123456789012 -Institution 'Your University'
+```
+
+**Validation status:** deployment tools, guards, dry runs and isolated Firestore namespaces are locally tested. No real cloud instance, container build, inbox delivery or GCS/redeployment acceptance has been verified for this new deployment path. See [Cloud deployment](docs/CLOUD_DEPLOYMENT.md) for prerequisites, manual Google/Firebase steps, costs, backups and the live acceptance checklist. Existing local setup remains separate.
+
 ## Scientific limits
 
 Measurements describe visible projected lamina area, **not true 3D surface area**. Hidden/overlapping portions cannot be reconstructed from one photograph. Physical units require reviewed calibration and reference-plane assumptions. Proposals require human review; unreviewed masks are not ground truth. Successful inference establishes runtime functionality, not biological accuracy. Sorrel remains a separate, unvalidated learned-model target.

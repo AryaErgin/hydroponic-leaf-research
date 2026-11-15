@@ -1,7 +1,12 @@
 # Portable installer sources use deterministic line endings on Windows and WSL.
+* whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 /*.ps1 text eol=lf
 /*.sh text eol=lf
 /src/local_setup/** text eol=lf
+/src/cloud_setup/** text eol=lf
+/src/cloud_instance/** text eol=lf
+/infra/cloud/** text eol=lf
+/tests/test_cloud*.py text eol=lf
 /configs/runtime/** text eol=lf
 /requirements-local*.txt text eol=lf
 /requirements-model*.txt text eol=lf

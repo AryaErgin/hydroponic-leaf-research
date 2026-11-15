@@ -4,7 +4,7 @@ import {initializeApp,getAuth,connectAuthEmulator,setPersistence,inMemoryPersist
 
 const content=document.querySelector('#content'),message=document.querySelector('#message');
 const config=await (await fetch('/api/firebase/config')).json();
-const production=config.identity_mode==='firebase_production';
+const production=config.identity_mode==='firebase_production'||config.identity_mode==='independent_cloud';
 if(production){
  if(config.local_only!==false||location.protocol!=='https:'||location.origin!==config.origin||config.emulator)throw Error('Secure Firebase origin required');
 }else if(!config.local_only||!['localhost','127.0.0.1'].includes(location.hostname))throw Error('Local evaluation only');
