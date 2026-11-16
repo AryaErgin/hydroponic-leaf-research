@@ -1,11 +1,16 @@
 {
   "capture_date": "2026-11-16",
   "data_kind": "original_synthetic_local_demo",
-  "image_rights": "Application UI screenshots with original procedural CC0 test artwork; repository source rights remain unchanged. No third-party photograph.",
-  "annotations": "Numbered outlines added during capture; paired crops separated by a white gutter. No invented UI.",
+  "image_rights": "Actual application UI with original procedural CC0 artwork; no third-party photographs or private records.",
+  "annotations": "Numbered tap outlines only. Each image is a single unstitched 390x844 CSS-pixel Chrome mobile-emulation viewport at2x; no physical-iPhone/Safari capture claim.",
+  "viewport_css_px": [
+    390,
+    844
+  ],
+  "physical_iphone_safari": false,
   "ui_sources": {
-    "src/webapp/static/index.html": "6cadcf699d413baef11c9ff7fb38c711d62d94433726097c54a2433595bc6172",
-    "src/webapp/static/app.js": "197e2cdcb9e04769d515276abe1c9edd346f28bb094755033e0cb68736ff6d16",
+    "src/webapp/static/index.html": "61989c9d7f6c57add39ad3f2a2162892fe6b43d92930466d2c9d3581a5df6919",
+    "src/webapp/static/app.js": "4e81490efc3db28b0459cd9bbddbfa2e2b70f2444f179653817754d1a232262b",
     "src/webapp/static/style.css": "101690e394e6b87335afc831ac74c89c24e56c2afb3947f7acd9efc28a923f34",
     "src/webapp/static/mask-editor.js": "065ea06e80af989af23018561351bbdf8961b9eaa11ce8a45bdaa005cf013c92",
     "src/auth_preview/static/app.js": "8df3f3ede4678b1ccef6755c2cfb9353f65ef507aa39c7965a5922585715e28b",
@@ -15,65 +20,110 @@
     {
       "file": "step-01.webp",
       "size": [
-        812,
-        205
+        780,
+        1688
       ],
-      "bytes": 9686,
-      "sha256": "b37c01ac9e2bbd90f5ab22f8e3f40aed972682574a7c44e0cab4166d5f21ff1c"
+      "bytes": 73542,
+      "sha256": "0fa5994cde988b2bd42e34d8ba2963b29ffd3faa9f85eb90ffe77d7e26ecae72"
     },
     {
       "file": "step-02.webp",
       "size": [
-        792,
-        287
+        780,
+        1688
       ],
-      "bytes": 16822,
-      "sha256": "660f482d554c7ce9662b961741265001d7b4e6bdb6421fb0cab3c1ef30406d75"
+      "bytes": 71008,
+      "sha256": "84cb4e7da91ec5e21907059c29ec9a5ea769b1265d34c59c45488bd0fd2e6ac4"
     },
     {
       "file": "step-03.webp",
       "size": [
-        812,
-        1282
+        780,
+        1688
       ],
-      "bytes": 48836,
-      "sha256": "9f6917c124d4217879be602ffe1e45b38d029cb1b4805e5a430af75c923fc1cc"
+      "bytes": 69900,
+      "sha256": "8b3f4e38e856d722cfd7e41cda130ce9181b92426002646b4f5b07cc89324be2"
     },
     {
       "file": "step-04.webp",
       "size": [
-        792,
-        490
+        780,
+        1688
       ],
-      "bytes": 26032,
-      "sha256": "4b5428f2c57394d5954604265de858bf546b8f7585638988d83ac78efff68126"
+      "bytes": 65342,
+      "sha256": "e621add55d268f6d5b4c8f9e878c31fd92103cb6b324c7674d2e282d9ac46722"
     },
     {
       "file": "step-05.webp",
       "size": [
-        812,
-        1587
+        780,
+        1688
       ],
-      "bytes": 62856,
-      "sha256": "ad99e09844a87d77ad1a28f31672ffd07eaa53621c77518ae88cfed3d53f1fe6"
+      "bytes": 53144,
+      "sha256": "6e54077f246cc115c8f51f397d832b1d5e5149ded3bbacd762fe2a66e795f3cf"
     },
     {
       "file": "step-06.webp",
       "size": [
-        812,
-        728
+        780,
+        1688
       ],
-      "bytes": 45446,
-      "sha256": "fe4a8a05485e55ee3f6aac6186ffb36846fff88c988159fc8044eda330739d98"
+      "bytes": 53484,
+      "sha256": "d8e07ec043c3b441db16ddc7200edf77c234dcb22d9110ee0d3caafb5e1d8967"
     },
     {
       "file": "step-07.webp",
       "size": [
-        844,
-        1492
+        780,
+        1688
       ],
-      "bytes": 57236,
-      "sha256": "527d2263c28a84a7f545425accd1532cd008f23182929b584fa20bae51e97757"
+      "bytes": 55562,
+      "sha256": "a9e312f1368a1630e72c97987208dd831dee8b0396e55551df5e7f65a987c9b6"
+    },
+    {
+      "file": "step-08.webp",
+      "size": [
+        780,
+        1688
+      ],
+      "bytes": 64668,
+      "sha256": "ccd06a4616693e3bacf447616d1a8ffaee8305cec5d2ac6cacf1dc6a47779166"
+    },
+    {
+      "file": "step-09.webp",
+      "size": [
+        780,
+        1688
+      ],
+      "bytes": 71508,
+      "sha256": "7b0fa2c2880020d0cbd7d4fbc44dd7960c98b2cf966fc999731a845887c6a7f8"
+    },
+    {
+      "file": "step-10.webp",
+      "size": [
+        780,
+        1688
+      ],
+      "bytes": 51566,
+      "sha256": "fb671e58ddf730b5f691c61950f62b90b77480cba10564756901d2303eb390e7"
+    },
+    {
+      "file": "step-11.webp",
+      "size": [
+        780,
+        1688
+      ],
+      "bytes": 55040,
+      "sha256": "f9172ceb28c4fdf668e1978d48eefae350b44bf107e6d484a60f05ca2b057929"
+    },
+    {
+      "file": "step-12.webp",
+      "size": [
+        780,
+        1688
+      ],
+      "bytes": 63438,
+      "sha256": "7cd589a45f6dd35bc63964a87986226ecca7500948d55e380affbba05d6cf532"
     }
   ]
 }

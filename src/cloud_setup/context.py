@@ -23,7 +23,7 @@ def runtime_source_path(name):
         return False
     if name in REQUIREMENTS or name in INFRA:return True
     if name in {'src/webapp/static/tutorial/manifest.json',
-        *(f'src/webapp/static/tutorial/step-{i:02}.webp' for i in range(1,8))}:return True
+        *(f'src/webapp/static/tutorial/step-{i:02}.webp' for i in range(1,13))}:return True
     if name.startswith('configs/') and path.suffix=='.json':
         return not any(word in name.lower() for word in ('private','credential','secret','firebase-web')) and not name.startswith('configs/runtime/firebase-tools/')
     if not name.startswith('src/'):return False

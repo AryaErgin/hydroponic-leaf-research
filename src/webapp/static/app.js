@@ -17,11 +17,19 @@ async function api(url,options={}){
  const deadline=new Promise((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(Error(message));},timeoutMs);});
  try{return await Promise.race([deadline,(async()=>{
   const session=globalThis.leafScienceSession,headers=new Headers(options.headers||{});
+  // A second-tab sign-in rotates CSRF. Refresh only this non-mutating session
+  // proof, retaining the selected file; never upload it under a different actor.
+  if(url==='/api/images/prepare'&&session?.integrated&&session.user?.id){
+   const latest=await(await api('/api/session')).json();
+   if(!latest.authenticated||!latest.user)throw Error('Your sign-in session expired. Open Sign in in another tab, then return here and try again; keep this page open to retain your photo.');
+   if(latest.user.id!==session.user.id||latest.user.org_id!==session.user.org_id)throw Error('The signed-in account or institution changed. Return to the original account in another tab before trying this photo again.');
+   Object.assign(session,latest);
+  }
   if(session?.csrf_token&&!['GET','HEAD','OPTIONS'].includes((options.method||'GET').toUpperCase()))headers.set('X-CSRF-Token',session.csrf_token);
   const response=await fetch(url,{...options,headers,credentials:'same-origin',signal:controller.signal});
   // Consume the network body inside the deadline; callers read only buffered JSON/blob data.
   const bytes=await response.arrayBuffer(),ready=new Response([204,205,304].includes(response.status)?null:bytes,{status:response.status,statusText:response.statusText,headers:response.headers});
-  if(!ready.ok){let data={};try{data=await ready.json();}catch{}if(ready.status===401&&session?.integrated)globalThis.location?.assign('/signin');throw Error(typeof data.detail==='string'?data.detail:Array.isArray(data.detail)?data.detail.map(d=>d.msg).join('; '):'Request failed: HTTP '+ready.status+' '+ready.statusText);}return ready;
+  if(!ready.ok){let data={};try{data=await ready.json();}catch{}if(ready.status===401&&url==='/api/images/prepare')throw Error('Your sign-in session expired. Open Sign in in another tab, then return here and try again; keep this page open to retain your photo.');if(ready.status===401&&session?.integrated)globalThis.location?.assign('/signin');throw Error(typeof data.detail==='string'?data.detail:Array.isArray(data.detail)?data.detail.map(d=>d.msg).join('; '):'Request failed: HTTP '+ready.status+' '+ready.statusText);}return ready;
  })()]);}catch(error){if(error.name==='AbortError')throw Error(message);throw error;}finally{clearTimeout(timeout);}
 }
 async function json(url,data,method='POST'){return (await api(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})).json();}
@@ -123,9 +131,9 @@ async function pending(profileId=selected?.id,revision=selectionRevision){
 }
 async function chooseFile(chosen){
  if(!chosen)return;
- const serial=++photoSerial,profileId=selected?.id;pendingPhoto=chosen;file=null;uploadedReview=null;uploadRequestId=null;imageProvenance=null;
+ const serial=++photoSerial,profileId=selected?.id;pendingPhoto=chosen;file=null;uploadedReview=null;uploadRequestId=null;imageProvenance=null;analysis=null;dirty=false;$('review-card').hidden=true;$('result-card').hidden=true;
  $('calibration-card').hidden=true;
- if(chosen.size>config.max_upload_bytes){say('This image exceeds the '+Math.round(config.max_upload_bytes/1048576)+' MB limit. Choose a smaller photo.',true);return;}
+ if(chosen.size>config.max_upload_bytes){const message='This image exceeds the '+Math.round(config.max_upload_bytes/1048576)+' MB limit. Export a smaller JPEG or choose another photo; your plant and calibration are saved.';$('photo-progress').textContent=message;$('photo-retry').hidden=true;say(message,true);buttons();return;}
  working=true;buttons();$('photo-progress').textContent='Preparing your photo…';$('photo-retry').hidden=true;
  try{
   const form=new FormData();form.append('image',chosen);
@@ -135,9 +143,13 @@ async function chooseFile(chosen){
   imageProvenance=JSON.parse(response.headers.get('X-Image-Provenance')||'null');
   uploadedReview=null;uploadRequestId=crypto.randomUUID();
   const label=$('file-label');label.replaceChildren();const strong=document.createElement('strong');strong.textContent=chosen.name;label.append(strong,document.createElement('span'));label.lastChild.textContent='Photo ready · '+(file.size/1048576).toFixed(1)+' MB';
-  analysis=null;dirty=false;$('review-card').hidden=true;$('result-card').hidden=true;$('photo-progress').textContent='Photo ready. Your original selection is retained until you choose another photo.';step('upload');
-  if(selected&&!selected.calibration)await startCalibration();else say('Photo ready. Tap Analyze photo.');
- }catch(error){if(serial===photoSerial){$('photo-progress').textContent='Your photo is still selected. Retry preparing it.';$('photo-retry').hidden=false;say(error.message,true);}}
+  analysis=null;dirty=false;$('review-card').hidden=true;$('result-card').hidden=true;$('photo-progress').textContent='Ready to analyze. Your selected photo is retained.';step('upload');
+  const frame=imageProvenance;
+  if(frame?.resized)$('photo-progress').textContent+=' Full frame resized from '+frame.oriented_size_px.join(' x ')+' to '+frame.normalized_size_px.join(' x ')+' pixels; no crop. Review boundaries and set scale on this prepared photo.';
+  if(selected&&!selected.calibration){
+   try{await startCalibration();}catch(error){if(serial!==photoSerial)return;potPicker?.clear?.();$('calibration-card').hidden=false;$('pot-error').textContent='Photo ready; the scale preview could not open. Tap Recalibrate to retry, or Later then Analyze photo for a pixels-only leaf review.';say('Photo ready. Calibration can be completed separately.');}
+  }else say('Photo ready. Tap Analyze photo.');
+ }catch(error){if(serial===photoSerial){$('photo-progress').textContent=userMessage(error.message)+' Your photo is still selected. Try again, or choose another photo.';$('photo-retry').hidden=false;say(error.message,true);}}
  finally{if(serial===photoSerial){working=false;buttons();}}
 }
 async function analyze(){
@@ -348,7 +360,7 @@ $('calibration-close').onclick=()=>$('calibration-card').hidden=true;
 $('analyze-pixels').onclick=()=>{$('calibration-card').hidden=true;analyze();};
 $('photo-retry').onclick=()=>chooseFile(pendingPhoto);
 $('plant').onchange=async()=>{if(!confirmDiscard()){if(selected)$('plant').value=selected.id;return;}try{await selectPlant();}catch(e){say(e.message,true);}};
-$('photo').onchange=()=>{if(confirmDiscard())chooseFile($('photo').files[0]);};
+$('photo').onchange=()=>{const chosen=$('photo').files[0];$('photo').value='';if(confirmDiscard())chooseFile(chosen);};
 async function changePhotoGeometry(){
  if(working||editor?.drawing)return;
  // A changed setup is a new upload claim, including when the previous upload

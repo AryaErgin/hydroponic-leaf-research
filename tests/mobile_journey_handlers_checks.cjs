@@ -37,6 +37,15 @@ const results=[];
 async function check(name,fn){try{await fn();results.push({name,status:'PASS'});}catch(e){results.push({name,status:'FAIL',detail:e.message});}}
 (async()=>{
  policy=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('src/webapp/static/review-state.js','utf8')).toString('base64'));
+ await check('Prepared photo survives calibration preview decode failure and can analyze pixels',async()=>{
+  const f=fixture();f.env.selected.calibration=null;f.env.api=async()=>prepared('ready');f.env.potPicker.load=async()=>{throw Error('EncodingError');};
+  await f.chooseFile(new File(['photo'],'photo.jpg',{type:'image/jpeg'}));
+  assert(f.env.file);assert.equal(f.env.$('photo-retry').hidden,true);assert.match(f.env.$('pot-error').textContent,/scale|calibration/i);assert.match(f.env.$('photo-progress').textContent,/Ready to analyze/);
+ });
+ await check('Preparation failure clears previous review and offers actual reason and same-file retry',async()=>{
+  const f=fixture();const photo=new File(['photo'],'photo.jpg',{type:'image/jpeg'});f.env.analysis={id:'old'};f.env.api=async()=>{throw Error('Photo format is unsupported');};
+  await f.chooseFile(photo);assert.equal(f.env.pendingPhoto,photo);assert.equal(f.env.analysis,null);assert.equal(f.env.$('review-card').hidden,true);assert.equal(f.env.$('photo-retry').hidden,false);assert.match(f.env.$('photo-progress').textContent,/unsupported/);assert.equal(f.env.working,false);
+ });
  await check('Initial empty selection calibration save returns safely',async()=>{const f=fixture();f.env.setupTarget=null;f.env.selected=null;await f.savePot();assert.equal(f.calls.length,0);});
  await check('Plant creation double submit blocked; lost response retries same request identity',async()=>{
   const f=fixture(),d=deferred(),requests=[];f.env.setupMode='new';f.env.json=async(url,payload)=>{requests.push({url,payload});return requests.length===1?d.promise:{id:'p'};};

@@ -48,13 +48,14 @@ def render(markdown):
             anchor = 'section-' + str(len(sections) + 1)
             sections.append((anchor, title))
             blocks.append(f'<h2 id="{anchor}">' + inline(title) + '</h2>')
-        elif (image := re.fullmatch(r'!\[([^\]\n]+)\]\(((?:/science-static|\.\./src/webapp/static)/tutorial/step-0[1-7]\.webp)\)', line)):
+        elif (image := re.fullmatch(r'!\[([^\]\n]+)\]\(((?:/science-static|\.\./src/webapp/static)/tutorial/step-(?:0[1-9]|1[0-2])\.webp)\)', line)):
             flush()
             alt, url = image.groups()
             url = url.replace('../src/webapp/static/', '/science-static/')
             metadata = json.loads((ROOT / 'src/webapp/static/tutorial/manifest.json').read_text(encoding='utf8'))
             size = next(item['size'] for item in metadata['images'] if url.endswith('/' + item['file']))
-            blocks.append('<figure class="tutorial-shot"><a href="' + url + '" target="_blank" rel="noopener" aria-label="Enlarge screenshot: ' + html.escape(alt, quote=True) + ' (opens in a new tab)"><img src="' + url + '" alt="' + html.escape(alt, quote=True) + '" width="' + str(size[0]) + '" height="' + str(size[1]) + '" loading="lazy" decoding="async"></a><figcaption>Tap to enlarge · demo data</figcaption></figure>')
+            number = int(re.search(r'step-(\d+)', url).group(1))
+            blocks.append('<figure class="tutorial-shot"><a href="' + url + '" target="_blank" rel="noopener" aria-label="Ekran görüntüsünü büyüt: ' + html.escape(alt, quote=True) + ' (yeni sekmede açılır)"><img src="' + url + '" alt="' + html.escape(alt, quote=True) + '" width="' + str(size[0]) + '" height="' + str(size[1]) + '" loading="lazy" decoding="async"></a><figcaption>Görüntü ' + str(number) + ' · Büyütmek için dokunun · yapay örnek</figcaption></figure>')
         elif line.startswith('- '):
             flush()
             if not listing:
@@ -70,7 +71,7 @@ def render(markdown):
     body = '\n'.join(blocks)
     return f'''<!doctype html>
 <!-- Generated from docs/USER_GUIDE.md by scripts/build_user_guide.py. -->
-<html lang="en">
+<html lang="tr">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>User guide · Leaf Research</title><link rel="stylesheet" href="/science-static/user-guide.css"></head>
 <body><a class="skip-link" href="#guide">Skip to guide</a>
 <header><a class="brand" href="/analyze">Leaf Research</a><span>User guide</span></header>

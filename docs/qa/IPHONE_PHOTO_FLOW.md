@@ -1,0 +1,28 @@
+# iPhone photo flow qualification
+
+2026-11-16. Synthetic local test material only. No production deployment or physical iPhone qualification is claimed.
+
+## Demonstrated failure causes and fix
+
+Preparation previously required the filename extension to match the decoded format, rejecting converted JPEG with HEIC name, extensionless JPEG and PNG with JPEG name. It also rejected multi-image HEIF still containers. Preparation now trusts the verified decoder format and uses the designated primary HEIF still, retaining frame provenance. Corrupt/unsupported/animated images remain rejected.
+
+A calibration preview decode failure previously escaped the same handler as preparation and displayed Retry photo despite successful preparation. Preview decoding now has a20-second deadline and its failure leaves the prepared photo available for pixels-only analysis. Failed preparation retains the source selection, displays recovery instructions, allows Try again or another selection, and hides stale reviews. Preparation has a60-second network/body deadline; analysis has a330-second deadline for cold-model processing. Session proof refresh permits same-account second-tab sign-in recovery and refuses changed account/institution uploads.
+
+Existing preparation limits remain10MiB input and60MP decoded source, with existing full-frame normalization to at most8MP. No crop or new resize policy. The UI now discloses resized source/prepared dimensions. EXIF orientation is normalized before rim points; prepared image, calibration, inference and mask share that frame. Normal RGB JPEG/PNG bytes remain exact where no normalization is needed. Existing conversion may use JPEG compression when normalized PNG exceeds the upload limit, recorded with quality in provenance. These engineering checks establish coordinate consistency, not biological segmentation accuracy; inspect boundaries and validate measurements against independent ground truth.
+
+## Automated evidence
+
+Chrome and Playwright WebKit27.2 on Windows: JPEG, PNG, generated HEIC,12MP JPEG, EXIF-rotated JPEG and quality35 WhatsApp-style JPEG reached actual promoted SegFormer inference and mask review. Draft save, refresh and resume ran for each file. Slow preparation, preparation failure then real retry, interrupted upload then real retry, and reselect succeeded. Actual review/editor and guide layouts had no horizontal overflow at320,375,390,430CSS pixels. HTTP401/413/415/422/500 recovery branches were injected deliberately; successful retries used the actual server. They are controlled recovery tests, not claims of naturally observed production HTTP failures. Unit checks cover all8EXIF orientations, rotated HEIF, multi-image HEIF primary selection, corrupt/GIF/APNG rejection, stalled preview timeout, rotatedCSRF and changed-actor rejection.
+
+The guide contains12 genuine390x844 viewport captures, annotated only, from the real application with original procedural artwork and isolated synthetic account/data. Public assets contain no photo metadata or credentials. Native iOS chooser is neither captured nor fabricated.
+
+## Exact physical iPhone manual test (pending)
+
+1. After an authorized deployment, open the canonical production URL in Safari. Sign in using an authorized test account and select a dedicated test plant. Record iOS version, Safari/device model and time; do not record credentials or image contents in diagnostics.
+2. Use the photo area ? Photo Library. Select an authorized JPEG, then repeat separately for HEIC/HEIF, PNG, EXIF portrait, a12MP/48MP photo within the input-size limit, and a WhatsApp-compressed copy. For an iCloud-only photo, remove only its local download using supported iOS controls, then select it online and wait for Photos to supply it. Do not delete the original.
+3. Verify Preparing ? Ready to analyze; no indefinite wait. For resized photos, read the disclosed dimensions. Enter the measured outside pot diameter, tap two opposite outside-rim points through the pot center, Save calibration, Analyze photo, and wait for the colored native leaf mask. Check rotation, boundaries and units. In a separate test choose Later and verify pixels-only analysis remains available until scale is validated.
+4. Toggle Airplane Mode during preparation, restore connection and Try again with the retained selection. Repeat during upload, retry Analyze photo. With a slow network distinguish preparation timeout from analysis/cold-start messaging. Choose another photo without refreshing; reselect the same photo too. Retake through the native camera picker when offered.
+5. Expire/sign out the test session from another tab. Attempt preparation, sign in again in that tab using the same account, return and Try again without recreating plant/calibration. Switching to another account must require returning to the original account before sending the retained photo.
+6. Correct leaves, Save draft, refresh, select the same plant and Resume unfinished review. Confirm corrections persist. Only approve clearly identified synthetic/authorized test data under the approved test procedure; verify history and CSV. Never approve a new biological measurement just to test the interface.
+7. Open /help; verify all12 phone screenshots, all four calibration stages, readable targets, tap enlargement and no sideways scrolling. Exercise320/375/390/430CSS widths with Web Inspector responsive controls when available, and actual portrait/landscape device views.
+8. Report only sanitized stage, status code, dimensions/size, timing and error category. Keep the original failing photograph private. Its exact reproduction remains pending until provided as authorized local material.

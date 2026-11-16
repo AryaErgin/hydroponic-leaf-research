@@ -19,10 +19,10 @@ def test_forged_self_hashed_receipt_cannot_authorize_any_source(tmp_path):
     with pytest.raises(ValueError):verify_context(tmp_path)
 
 
-def test_only_the_seven_reviewed_tutorial_images_and_manifest_enter_cloud_context():
-    for name in ['manifest.json', *(f'step-{i:02}.webp' for i in range(1,8))]:
+def test_only_the_twelve_reviewed_tutorial_images_and_manifest_enter_cloud_context():
+    for name in ['manifest.json', *(f'step-{i:02}.webp' for i in range(1,13))]:
         assert runtime_source_path('src/webapp/static/tutorial/'+name)
-    for name in ['private.webp', 'step-08.webp', 'step-01.png', 'personal.json', '../private.webp']:
+    for name in ['private.webp', 'step-13.webp', 'step-01.png', 'personal.json', '../private.webp']:
         assert not runtime_source_path('src/webapp/static/tutorial/'+name)
     assert not runtime_source_path('src/webapp/static/private-photo.webp')
 

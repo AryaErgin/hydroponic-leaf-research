@@ -23,11 +23,11 @@ def test_public_guide_never_authorizes_or_opens_scientific_data(application, mon
     response = client.get('/help')
     assert response.status_code == 200
     assert response.headers['content-type'].startswith('text/html')
-    assert '1. Select or add a plant' in response.text
-    assert '7. View growth history and export' in response.text
+    assert '1. Sign in' in response.text
+    assert '8. Büyüme geçmişi ve CSV' in response.text
     assert '<script' not in response.text
-    assert response.text.count('<figure') == 7
-    assert response.text.count('<img ') == 7
+    assert response.text.count('<figure') == 12
+    assert response.text.count('<img ') == 12
     assert client.get('/science-static/user-guide.css').status_code == 200
     image = client.get('/science-static/tutorial/step-01.webp')
     assert image.status_code == 200 and image.headers['content-type'] == 'image/webp'
@@ -59,7 +59,7 @@ def test_tutorial_images_have_safe_native_enlargement_and_alt_text():
     assert 'href="/science-static/tutorial/step-01.webp"' in page
     assert 'target="_blank" rel="noopener"' in page
     assert 'alt="Select the plant &amp; Add plant button"' in page
-    assert 'loading="lazy"' in page and 'Tap to enlarge' in page
+    assert 'loading="lazy"' in page and 'Büyütmek için dokunun' in page
     relative = build['render']('# Test\n\n![Select plant](../src/webapp/static/tutorial/step-01.webp)\n')
     assert 'src="/science-static/tutorial/step-01.webp"' in relative
     for unsafe in ('https://example.test/private.png', '/science-static/tutorial/../private.webp', 'javascript:alert(1)'):
@@ -73,7 +73,7 @@ def test_tutorial_assets_are_small_metadata_free_and_match_current_ui():
     from PIL import Image
     base = ROOT / 'src/webapp/static/tutorial'
     manifest = json.loads((base / 'manifest.json').read_text(encoding='utf8'))
-    assert len(manifest['images']) == 7
+    assert len(manifest['images']) == 12
     assert manifest['data_kind'] == 'original_synthetic_local_demo'
     for relative, expected in manifest['ui_sources'].items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected, 'UI changed: review and recapture tutorial images'
@@ -85,7 +85,9 @@ def test_tutorial_assets_are_small_metadata_free_and_match_current_ui():
         with Image.open(path) as image:
             assert image.format == 'WEBP' and not image.getexif()
             assert not any(key in image.info for key in ('exif', 'xmp', 'icc_profile', 'comment'))
-            assert list(image.size) == item['size']
+            assert list(image.size) == item['size'] == [780, 1688]
+            assert manifest['viewport_css_px'] == [390, 844]
+            assert manifest['physical_iphone_safari'] is False
 
 
 def test_standalone_guide_links_use_standalone_static_mount():
@@ -116,7 +118,7 @@ def test_firebase_shell_retains_public_guide_without_identity_provider_calls(mon
             integrated=True, require_verified_email=True), RefuseGateway(), base/'science')
         with TestClient(app) as client:
             page = client.get('/help')
-            assert page.status_code == 200 and '7. View growth history and export' in page.text
+            assert page.status_code == 200 and '8. Büyüme geçmişi ve CSV' in page.text
             assert client.get('/science-static/user-guide.css').status_code == 200
             assert 'href="/help"' in client.get('/signin').text
             assert client.get('/api/profiles').status_code == 401

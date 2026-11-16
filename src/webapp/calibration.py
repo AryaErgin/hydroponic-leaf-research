@@ -19,18 +19,22 @@ def prepare_image(data,filename,content_type,settings):
     artifact, never an in-place rewrite of historical uploads or references.
     """
     if not data or len(data)>settings.max_upload_bytes:raise ValueError('Photo is empty or too large. Choose a smaller photo.')
-    suffix=Path(filename or '').suffix.lower()
-    formats={'.jpg':'JPEG','.jpeg':'JPEG','.png':'PNG','.heic':'HEIF','.heif':'HEIF'}
-    if suffix not in formats:raise ValueError('Choose a JPEG, PNG or HEIC photo.')
-    if suffix in ('.heic','.heif'):
+    # Photo Library can convert the bytes while retaining the original name or
+    # MIME type. Validate the decoder's format, never these advisory fields.
+    heif_container=len(data)>=12 and data[4:8]==b'ftyp'
+    if heif_container:
         try:
             from pillow_heif import register_heif_opener
             register_heif_opener()
         except ImportError as exc:raise ValueError('HEIC support is unavailable. Export this photo as JPEG and try again.') from exc
     try:
         with Image.open(io.BytesIO(data)) as image:
-            if image.format!=formats[suffix] or getattr(image,'n_frames',1)!=1:
+            frame_count=getattr(image,'n_frames',1)
+            if image.format not in ('JPEG','PNG','HEIF') or (image.format!='HEIF' and frame_count!=1):
                 raise ValueError('Choose a single still photo in JPEG, PNG or HEIC format.')
+            # HEIF may store auxiliary or additional still images. Pillow-heif
+            # opens the designated primary image; never switch to frame zero.
+            selected_frame=image.tell()
             if image.width*image.height>60_000_000:raise ValueError('Photo exceeds the 60 megapixel preparation limit. Choose a smaller photo.')
             orientation=image.getexif().get(274,1)
             # pillow-heif applies HEIF orientation on decode and exposes its
@@ -38,7 +42,8 @@ def prepare_image(data,filename,content_type,settings):
             original_orientation=image.info.get('original_orientation',orientation)
             provenance=dict(original_sha256=hashlib.sha256(data).hexdigest(),original_format=image.format,
                 original_mode=image.mode,original_exif_orientation=original_orientation,
-                original_size_px=[image.width,image.height],normalization='unchanged')
+                original_size_px=[image.width,image.height],normalization='unchanged',
+                original_frame_count=frame_count,selected_frame_index=selected_frame)
             image.load()
             resized=image.width*image.height>settings.max_image_pixels
             provenance['resized']=resized

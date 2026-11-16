@@ -7,3 +7,7 @@ class TestMobileJourney(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
     def test_mobile_workflow_controls_and_messages(self):self.check('mobile_journey_checks.cjs')
     def test_actual_async_journey_handlers(self):self.check('mobile_journey_handlers_checks.cjs')
+
+    def test_iphone_preview_timeout(self):self.check("iphone_preview_timeout_checks.cjs")
+
+    def test_iphone_session_recovery(self):self.check("iphone_session_checks.cjs")

@@ -9,9 +9,9 @@ export class PotCalibration {
   }
   async load(file){
     if(!file)return;const serial=++this.serial,url=URL.createObjectURL(file),image=new Image();
-    try{image.src=url;await image.decode();if(serial!==this.serial)return;
+    let timer;try{image.src=url;await Promise.race([image.decode(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Scale preview timed out. Retry calibration or continue with pixels-only analysis.')),20000);})]);if(serial!==this.serial)return;
       this.viewport?.abort();this.file=file;this.image=image;this.canvas.width=image.naturalWidth;this.canvas.height=image.naturalHeight;this.points=[];this.viewport?.setSize(image.naturalWidth,image.naturalHeight);this.redo();
-    }finally{URL.revokeObjectURL(url);}
+    }finally{clearTimeout(timer);URL.revokeObjectURL(url);}
   }
   clear(){++this.serial;this.viewport?.abort();this.file=null;this.image=null;this.points=[];this.canvas.getContext('2d').clearRect?.(0,0,this.canvas.width,this.canvas.height);this.changed();}
   get locked(){return !!this._locked;}
