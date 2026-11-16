@@ -25,8 +25,12 @@ def test_public_guide_never_authorizes_or_opens_scientific_data(application, mon
     assert response.headers['content-type'].startswith('text/html')
     assert '1. Select or add a plant' in response.text
     assert '7. View growth history and export' in response.text
-    assert '<script' not in response.text and '<img' not in response.text
+    assert '<script' not in response.text
+    assert response.text.count('<figure') == 7
+    assert response.text.count('<img ') == 7
     assert client.get('/science-static/user-guide.css').status_code == 200
+    image = client.get('/science-static/tutorial/step-01.webp')
+    assert image.status_code == 200 and image.headers['content-type'] == 'image/webp'
     assert not application.state.scientific.services
 
 
@@ -48,6 +52,42 @@ def test_renderer_escapes_literal_markup():
     assert '&lt;script&gt;' in html and '<strong>Tool:</strong> A &amp; B' in html
 
 
+def test_tutorial_images_have_safe_native_enlargement_and_alt_text():
+    build = runpy.run_path(str(ROOT / 'scripts/build_user_guide.py'))
+    page = build['render']('# Test\n\n![Select the plant & Add plant button](/science-static/tutorial/step-01.webp)\n')
+    assert '<figure class="tutorial-shot">' in page
+    assert 'href="/science-static/tutorial/step-01.webp"' in page
+    assert 'target="_blank" rel="noopener"' in page
+    assert 'alt="Select the plant &amp; Add plant button"' in page
+    assert 'loading="lazy"' in page and 'Tap to enlarge' in page
+    relative = build['render']('# Test\n\n![Select plant](../src/webapp/static/tutorial/step-01.webp)\n')
+    assert 'src="/science-static/tutorial/step-01.webp"' in relative
+    for unsafe in ('https://example.test/private.png', '/science-static/tutorial/../private.webp', 'javascript:alert(1)'):
+        page = build['render']('# Test\n\n![Unsafe]('+unsafe+')\n')
+        assert '<img' not in page and '<figure' not in page
+
+
+def test_tutorial_assets_are_small_metadata_free_and_match_current_ui():
+    import hashlib
+    import json
+    from PIL import Image
+    base = ROOT / 'src/webapp/static/tutorial'
+    manifest = json.loads((base / 'manifest.json').read_text(encoding='utf8'))
+    assert len(manifest['images']) == 7
+    assert manifest['data_kind'] == 'original_synthetic_local_demo'
+    for relative, expected in manifest['ui_sources'].items():
+        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected, 'UI changed: review and recapture tutorial images'
+    for item in manifest['images']:
+        path = base / item['file']
+        assert path.name.startswith('step-') and path.suffix == '.webp'
+        assert path.stat().st_size < 220_000
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == item['sha256']
+        with Image.open(path) as image:
+            assert image.format == 'WEBP' and not image.getexif()
+            assert not any(key in image.info for key in ('exif', 'xmp', 'icc_profile', 'comment'))
+            assert list(image.size) == item['size']
+
+
 def test_standalone_guide_links_use_standalone_static_mount():
     from src.webapp.app import create_app
     from src.webapp.settings import Settings
@@ -58,6 +98,7 @@ def test_standalone_guide_links_use_standalone_static_mount():
     assert page.status_code == 200
     assert '/static/user-guide.css' in page.text and 'href="/"' in page.text
     assert client.get('/static/user-guide.css').status_code == 200
+    assert client.get('/static/tutorial/step-01.webp').headers['content-type'] == 'image/webp'
 
 
 def test_firebase_shell_retains_public_guide_without_identity_provider_calls(monkeypatch):

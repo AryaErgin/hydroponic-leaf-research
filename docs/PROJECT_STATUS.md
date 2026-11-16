@@ -1,3 +1,9 @@
+# Visual user guide ? 2026-11-16
+
+Seven genuine annotated screenshots now illustrate the existing `/help` workflow: sign-in/plant, photo, calibration, analysis, colored-leaf editing, approval and history/CSV. Original synthetic artwork and empty/local test account UI only; no private photographs, account details or model weights. Seven optimized WebP assets total 274010 bytes, with alt text and native tap/keyboard enlargement. The Markdown guide uses the same images and copy.
+
+Chrome mobile/touch emulation passed 320, 375, 390 and 430 CSS pixels and desktop1280: no overflow, all images loaded,35 image enlargements and5 keyboard enlargements passed. Physical iPhone Safari remains untested. Relevant guide/integrated/packaging tests passed; actual isolated SegFormer, calibration, Split, synthetic-only approval, history and CSV worked during capture. Scientific algorithms and authentication are unchanged. Public source/history scanning and image-content/metadata review gate publication. A guide-only live patch is prepared separately; production deployment is pending and no cloud operations occurred.
+
 # Project status
 
 2026-11-15 — **Independent cloud deployment tooling: locally validated; live deployment UNVERIFIED.**

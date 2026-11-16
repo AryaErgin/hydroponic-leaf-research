@@ -19,6 +19,14 @@ def test_forged_self_hashed_receipt_cannot_authorize_any_source(tmp_path):
     with pytest.raises(ValueError):verify_context(tmp_path)
 
 
+def test_only_the_seven_reviewed_tutorial_images_and_manifest_enter_cloud_context():
+    for name in ['manifest.json', *(f'step-{i:02}.webp' for i in range(1,8))]:
+        assert runtime_source_path('src/webapp/static/tutorial/'+name)
+    for name in ['private.webp', 'step-08.webp', 'step-01.png', 'personal.json', '../private.webp']:
+        assert not runtime_source_path('src/webapp/static/tutorial/'+name)
+    assert not runtime_source_path('src/webapp/static/private-photo.webp')
+
+
 @pytest.mark.parametrize('tracked',['src/cloud_instance/runtime.py',''])
 def test_packager_rejects_uncommitted_runtime_source_instead_of_silently_shipping_old_code(tmp_path,monkeypatch,tracked):
     from src.cloud_setup import context

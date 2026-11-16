@@ -2,11 +2,13 @@
 
 Run python scripts/build_user_guide.py after editing the guide. --check verifies
 the committed runtime asset without writing. Supported Markdown: headings,
-paragraphs, single-level bullet lists and **strong** text. HTML is escaped.
+paragraphs, single-level bullet lists, **strong** text and local tutorial images.
+Images link to their original for native browser enlargement. HTML is escaped.
 """
 from pathlib import Path
 import argparse
 import html
+import json
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +48,13 @@ def render(markdown):
             anchor = 'section-' + str(len(sections) + 1)
             sections.append((anchor, title))
             blocks.append(f'<h2 id="{anchor}">' + inline(title) + '</h2>')
+        elif (image := re.fullmatch(r'!\[([^\]\n]+)\]\(((?:/science-static|\.\./src/webapp/static)/tutorial/step-0[1-7]\.webp)\)', line)):
+            flush()
+            alt, url = image.groups()
+            url = url.replace('../src/webapp/static/', '/science-static/')
+            metadata = json.loads((ROOT / 'src/webapp/static/tutorial/manifest.json').read_text(encoding='utf8'))
+            size = next(item['size'] for item in metadata['images'] if url.endswith('/' + item['file']))
+            blocks.append('<figure class="tutorial-shot"><a href="' + url + '" target="_blank" rel="noopener" aria-label="Enlarge screenshot: ' + html.escape(alt, quote=True) + ' (opens in a new tab)"><img src="' + url + '" alt="' + html.escape(alt, quote=True) + '" width="' + str(size[0]) + '" height="' + str(size[1]) + '" loading="lazy" decoding="async"></a><figcaption>Tap to enlarge · demo data</figcaption></figure>')
         elif line.startswith('- '):
             flush()
             if not listing:

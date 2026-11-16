@@ -1,0 +1,79 @@
+{
+  "capture_date": "2026-11-16",
+  "data_kind": "original_synthetic_local_demo",
+  "image_rights": "Application UI screenshots with original procedural CC0 test artwork; repository source rights remain unchanged. No third-party photograph.",
+  "annotations": "Numbered outlines added during capture; paired crops separated by a white gutter. No invented UI.",
+  "ui_sources": {
+    "src/webapp/static/index.html": "6cadcf699d413baef11c9ff7fb38c711d62d94433726097c54a2433595bc6172",
+    "src/webapp/static/app.js": "197e2cdcb9e04769d515276abe1c9edd346f28bb094755033e0cb68736ff6d16",
+    "src/webapp/static/style.css": "101690e394e6b87335afc831ac74c89c24e56c2afb3947f7acd9efc28a923f34",
+    "src/webapp/static/mask-editor.js": "065ea06e80af989af23018561351bbdf8961b9eaa11ce8a45bdaa005cf013c92",
+    "src/auth_preview/static/app.js": "8df3f3ede4678b1ccef6755c2cfb9353f65ef507aa39c7965a5922585715e28b",
+    "src/firebase_preview/static/app.js": "65379b72e3308b3666e389762d26c9f46e2de6fc6b21a537f6b99520d40a0144"
+  },
+  "images": [
+    {
+      "file": "step-01.webp",
+      "size": [
+        812,
+        697
+      ],
+      "bytes": 16782,
+      "sha256": "31846d903e083a7c1d4bcf53b495959a75b7d290010288b94f7a8554a804a56a"
+    },
+    {
+      "file": "step-02.webp",
+      "size": [
+        792,
+        287
+      ],
+      "bytes": 16822,
+      "sha256": "660f482d554c7ce9662b961741265001d7b4e6bdb6421fb0cab3c1ef30406d75"
+    },
+    {
+      "file": "step-03.webp",
+      "size": [
+        812,
+        1282
+      ],
+      "bytes": 48836,
+      "sha256": "9f6917c124d4217879be602ffe1e45b38d029cb1b4805e5a430af75c923fc1cc"
+    },
+    {
+      "file": "step-04.webp",
+      "size": [
+        792,
+        490
+      ],
+      "bytes": 26032,
+      "sha256": "4b5428f2c57394d5954604265de858bf546b8f7585638988d83ac78efff68126"
+    },
+    {
+      "file": "step-05.webp",
+      "size": [
+        812,
+        1587
+      ],
+      "bytes": 62856,
+      "sha256": "ad99e09844a87d77ad1a28f31672ffd07eaa53621c77518ae88cfed3d53f1fe6"
+    },
+    {
+      "file": "step-06.webp",
+      "size": [
+        812,
+        728
+      ],
+      "bytes": 45446,
+      "sha256": "fe4a8a05485e55ee3f6aac6186ffb36846fff88c988159fc8044eda330739d98"
+    },
+    {
+      "file": "step-07.webp",
+      "size": [
+        844,
+        1492
+      ],
+      "bytes": 57236,
+      "sha256": "527d2263c28a84a7f545425accd1532cd008f23182929b584fa20bae51e97757"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import mimetypes
 from pathlib import Path
 import secrets
 from typing import Literal
@@ -20,6 +21,8 @@ from .settings import Settings
 from .calibration import prepare_image
 
 STATIC=Path(__file__).parent/'static'
+# Windows MIME registries may omit WebP; tutorial links must open as images.
+mimetypes.add_type('image/webp','.webp')
 
 
 class BodyLimitMiddleware:
