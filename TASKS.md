@@ -1,6 +1,6 @@
 ## VISUAL-GUIDE-001 ? Screenshot user tutorial
 
-Status: DONE (2026-11-16), implementation/local acceptance. Owner: Codex. Seven genuine annotated tutorial images (274010 bytes total), existing /help and Markdown source synchronized. 320/375/390/430 plus1280 browser/touch/keyboard enlargement and no-overflow checks passed; physical Safari unverified. Guide/privacy/packaging tests passed; isolated real-model calibration/split/synthetic approval/history/CSV exercised. Public publication gate and guide-only deployment patch recorded in artifacts/visual_guide_001/. No production/cloud/data changes; live deployment pending.
+Status: DONE (2026-11-16), implementation/local acceptance. Owner: Codex. Seven genuine annotated tutorial images (266914 bytes total), existing /help and Markdown source synchronized. 320/375/390/430 plus1280 browser/touch/keyboard enlargement and no-overflow checks passed; physical Safari unverified. Guide/privacy/packaging tests passed; isolated real-model calibration/split/synthetic approval/history/CSV exercised. Public publication gate and guide-only deployment patch recorded in artifacts/visual_guide_001/. No production/cloud/data changes; live deployment pending.
 
 # Tasks
 

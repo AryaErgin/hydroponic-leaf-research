@@ -16,10 +16,10 @@
       "file": "step-01.webp",
       "size": [
         812,
-        697
+        205
       ],
-      "bytes": 16782,
-      "sha256": "31846d903e083a7c1d4bcf53b495959a75b7d290010288b94f7a8554a804a56a"
+      "bytes": 9686,
+      "sha256": "b37c01ac9e2bbd90f5ab22f8e3f40aed972682574a7c44e0cab4166d5f21ff1c"
     },
     {
       "file": "step-02.webp",

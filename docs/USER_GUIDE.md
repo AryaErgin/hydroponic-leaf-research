@@ -4,7 +4,7 @@ Follow these seven steps, from a photo to reviewed growth results. Tap any scree
 
 ## 1. Select or add a plant
 
-Sign in with your verified, approved account, then open Analyze a plant. Choose your plant (1), or tap + Add plant (2), enter its name and species, and save.
+Open Analyze a plant and choose your plant (1). For a new plant, tap + Add plant (2), enter its name and species, and save.
 
 ![Plant selector marked 1 and Add plant marked 2 in the real analysis page](../src/webapp/static/tutorial/step-01.webp)
 
