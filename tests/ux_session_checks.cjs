@@ -1,0 +1,11 @@
+const fs=require('fs'),assert=require('assert/strict');
+const source=fs.readFileSync('src/webapp/static/app.js','utf8');
+const start=source.indexOf('async function reconnectSession('),end=source.indexOf('function tipsKey(',start);
+assert(start>=0&&end>start,'Explicit reconnect handler must exist');
+const ui={},node=id=>ui[id]||(ui[id]={hidden:false,textContent:'',disabled:false});
+(async()=>{let state={authenticated:true,csrf_token:'new',user:{id:'same',org_id:'org',status:'ACTIVE'}},original={integrated:true,csrf_token:'old',user:{id:'same',org_id:'org'}};globalThis.leafScienceSession=original;
+const env={api:async()=>({json:async()=>state}),$:node,buttons(){},say(){}};
+const reconnect=new Function('env','with(env){'+source.slice(start,end)+';return reconnectSession;}')(env);
+await reconnect();assert.equal(original.csrf_token,'new');assert(node('session-recovery').hidden);
+state={authenticated:true,csrf_token:'foreign',user:{id:'other',org_id:'org',status:'ACTIVE'}};node('session-recovery').hidden=false;await reconnect();assert.equal(original.csrf_token,'new');assert.equal(node('session-recovery').hidden,false);assert.match(node('session-recovery-status').textContent,/original account/i);
+state={authenticated:false};await reconnect();assert.match(node('session-recovery-status').textContent,/sign in/i);assert.equal(original.csrf_token,'new');delete globalThis.leafScienceSession;console.log('PASS reconnect refreshes proof only for original actor without requesting inference or clearing work');})().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,3 +1,5 @@
+import {calibrationGuidance} from './calibration-guidance.js';
+import {historyView} from './history-view.js';
 import {photoDiagnostic} from './image-diagnostics.js';
 import {workflowState} from './workflow-state.js';
 import {MaskEditor,leafColor} from './mask-editor.js';
@@ -24,7 +26,7 @@ async function api(url,options={}){
   // proof, retaining the selected file; never upload it under a different actor.
   if(url==='/api/images/prepare'&&session?.integrated&&session.user?.id){
    const latest=await(await api('/api/session')).json();
-   if(!latest.authenticated||!latest.user)throw Error('Your sign-in session expired. Open Sign in in another tab, then return here and try again; keep this page open to retain your photo.');
+   if(!latest.authenticated||!latest.user){globalThis.leafSessionRecovery?.();throw Error('Your sign-in session expired. Open Sign in in another tab, then return here and try again; keep this page open to retain your photo.');}
    if(latest.user.id!==session.user.id||latest.user.org_id!==session.user.org_id)throw Error('The signed-in account or institution changed. Return to the original account in another tab before trying this photo again.');
    Object.assign(session,latest);
   }
@@ -32,12 +34,13 @@ async function api(url,options={}){
   const response=await fetch(url,{...options,headers,credentials:'same-origin',signal:controller.signal});
   // Consume the network body inside the deadline; callers read only buffered JSON/blob data.
   const bytes=await response.arrayBuffer(),ready=new Response([204,205,304].includes(response.status)?null:bytes,{status:response.status,statusText:response.statusText,headers:response.headers});
-  if(!ready.ok){let data={};try{data=await ready.json();}catch{}if(ready.status===401&&url==='/api/images/prepare')throw Error('Your sign-in session expired. Open Sign in in another tab, then return here and try again; keep this page open to retain your photo.');if(ready.status===401&&session?.integrated)globalThis.location?.assign('/signin');const failed=Error(typeof data.detail==='string'?data.detail:Array.isArray(data.detail)?data.detail.map(d=>d.msg).join('; '):'Request failed: HTTP '+ready.status+' '+ready.statusText);failed.status=ready.status;if(typeof data.code==='string')failed.code=data.code;if(data.diagnostic&&typeof data.diagnostic==='object')failed.diagnostic=data.diagnostic;throw failed;}return ready;
+  if(!ready.ok){let data={};try{data=await ready.json();}catch{}if(ready.status===401&&url==='/api/images/prepare')throw Error('Your sign-in session expired. Open Sign in in another tab, then return here and try again; keep this page open to retain your photo.');if(ready.status===401&&session?.integrated){globalThis.leafSessionRecovery?.();const expired=Error('Your sign-in session expired. Keep this page open to retain your photo and edits. Sign in in another tab, then reconnect here.');expired.status=401;throw expired;}const failed=Error(typeof data.detail==='string'?data.detail:Array.isArray(data.detail)?data.detail.map(d=>d.msg).join('; '):'Request failed: HTTP '+ready.status+' '+ready.statusText);failed.status=ready.status;if(typeof data.code==='string')failed.code=data.code;if(data.diagnostic&&typeof data.diagnostic==='object')failed.diagnostic=data.diagnostic;throw failed;}return ready;
  })()]);}catch(error){if(error.name==='AbortError')throw Error(message);throw error;}finally{clearTimeout(timeout);}
 }
 async function json(url,data,method='POST'){return (await api(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})).json();}
 function step(name){document.querySelectorAll('[data-step]').forEach(n=>n.classList.toggle('active',n.dataset.step===name));renderGuidance();}
-function currentApprovalState(){return approvalState({analysis,selected,stats:editor?.drawing?null:editor?.stats(),confirmed:$('review-confirm').checked,working,saving:savingApproval,drawing:editor?.drawing,geometryUnchanged:$('geometry').checked});}
+function currentApprovalState(confirmed=$('review-confirm').checked){return approvalState({analysis,selected,stats:editor?.drawing?null:editor?.stats(),confirmed,working,saving:savingApproval,drawing:editor?.drawing,geometryUnchanged:$('geometry').checked});}
+function confirmationIsOnlyBlocker(){return !$('review-confirm').checked&&!approvalConflict&&currentApprovalState(true).enabled;}
 function buttons(){
  $('analyze').disabled=working||!selected||!file;
  const approval=currentApprovalState();$('approve').disabled=!approval.enabled||Boolean(approvalConflict);$('approval-reason').textContent=approvalConflict?'Approval blocked: a measurement already exists for this date.':approval.reason;$('approve').textContent=savingApproval?'Saving…':'Approve measurement';
@@ -59,6 +62,16 @@ function showPhotoDiagnostic(error,source,stage,started){
  const report=photoDiagnostic(error,source,stage,Date.now()-started,config.max_upload_bytes);
  $('photo-diagnostic').hidden=false;if($('capture-details'))$('capture-details').open=true;$('photo-diagnostic-text').textContent=JSON.stringify(report,null,2);$('photo-diagnostic-code').textContent='Error code: '+report.code;
 }
+async function reconnectSession(){
+ const button=$('session-reconnect');button.disabled=true;
+ try{
+  const latest=await(await api('/api/session')).json(),original=globalThis.leafScienceSession;
+  if(!latest.authenticated||!latest.user)throw Error('Sign in in the other tab first, then reconnect here.');
+  if(latest.user.id!==original?.user?.id||latest.user.org_id!==original?.user?.org_id||latest.user.status!=='ACTIVE')throw Error('Return to the original account and institution before reconnecting.');
+  Object.assign(original,latest);$('session-recovery').hidden=true;buttons();say('Reconnected. Your photo and edits are still here. Continue with the action you were using.');
+ }catch(error){$('session-recovery-status').textContent=error.message;}
+ finally{button.disabled=false;}
+}
 function tipsKey(){const u=globalThis.leafScienceSession?.user;return u?.id?'hydroponic.guidance.v1:'+u.id+':'+(u.org_id||'local'):null;}
 function syncTips(){let hidden=false;try{const key=tipsKey();hidden=key&&localStorage.getItem(key)==='hidden';}catch{}$('workspace').classList.toggle('tips-hidden',Boolean(hidden));if($('workflow-tips')){$('workflow-tips').textContent=hidden?'Show tips':'Hide tips';$('workflow-tips').setAttribute('aria-expanded',String(!hidden));$('workflow-tips').setAttribute('aria-pressed',String(!hidden));if(analysis&&editor?.labels&&!editor.drawing)renderLeafStats();}}
 function renderGuidance(){
@@ -66,24 +79,30 @@ function renderGuidance(){
  const stats=analysis&&editor&&!editor.drawing?editor.stats():null;
  guidance=workflowState({selected,file,analysis,stats,confirmed:$('review-confirm').checked,working,saving:savingApproval,drawing:editor?.drawing,geometryUnchanged:$('geometry').checked,calibrationOpen:!$('calibration-card').hidden,calibrationDeferred,calibrationSaved,reviewVisited,phase:workflowPhase,approvalConflict,resumeId,prepareFailed:!$('photo-retry').hidden});
  $('workspace').dataset.guidedStep=guidance.step;
- $('workflow-heading').textContent='Step '+guidance.index+' of 7 - '+guidance.title;
+ $('workflow-heading').textContent=guidance.title;$('workflow-position').textContent='Step '+guidance.index+' of 7';
  $('workflow-hint').textContent=guidance.instruction;
- const next=$('workflow-action');next.textContent=guidance.label;next.disabled=guidance.action==='wait';
+ const next=$('workflow-action');next.textContent=guidance.label;next.disabled=guidance.action==='wait';next.hidden=true;
  if(guidance.step==='plant')next.textContent=profiles.length?'Choose plant':'Add plant';
- if(guidance.step==='calibration'&&!$('calibration-card').hidden){next.textContent=!potPicker?.image?'Retry scale preview':$('pot-save').disabled?'Mark pot edges':'Save calibration';$('workflow-hint').textContent=!potPicker?.image?'Your photo is ready. Retry the scale preview, or review leaves in pixels first.':!(Number($('pot-diameter').value)>0)?'Enter the measured pot outer diameter in cm.':!potPicker?.points.length?'Tap the first point on the outer pot rim.':potPicker.points.length===1?'Tap the opposite outer-rim point.':'Check both rim points, then save calibration.';}
+ if(guidance.step==='calibration'&&!$('calibration-card').hidden){const hint=calibrationGuidance({diameter:Number($('pot-diameter').value),distance:potPicker?.distance(),points:potPicker?.points.length||0,previewReady:Boolean(potPicker?.image),saving:calibrationSaving});next.textContent=hint.ready?'Save calibration':hint.target==='pot-diameter'?'Enter pot diameter':'Mark pot edges';$('workflow-hint').textContent=hint.message;}
  for(const n of document.querySelectorAll('[data-workflow-step]')){const w=guidance.steps.find(x=>x.key===n.dataset.workflowStep);n.classList.toggle('current',w.current);n.classList.toggle('complete',w.complete);n.classList.toggle('optional',w.optional);if(w.current)n.setAttribute('aria-current','step');else n.removeAttribute('aria-current');n.disabled=working||Boolean(editor?.drawing)||!w.available;n.setAttribute('aria-label',w.label+(w.current?', current step':w.complete?', complete':w.optional?', optional / checked per photo':''));}
  const phases={preparing:'Preparing image...',uploading:'Uploading prepared image...',analyzing:'Analyzing leaves. The service may need to start; the first run can take several minutes.', 'review-loading':'Preparing the colored leaf review...'};
- $('analysis-phase').textContent=phases[workflowPhase]||'';$('analysis-phase').hidden=!phases[workflowPhase];
+ $('analysis-phase').textContent=phases[workflowPhase]||'';$('analysis-phase').hidden=!phases[workflowPhase];if(phases[workflowPhase]){$('workflow-heading').textContent={preparing:'Preparing your photo',uploading:'Uploading your photo',analyzing:'Analyzing the leaves','review-loading':'Opening your review'}[workflowPhase];$('workflow-hint').textContent=workflowPhase==='analyzing'?'Keep this page open. The first analysis can take a few minutes while the service starts.':'Your photo is kept while this finishes.';}
  for(const id of ['another-photo','view-growth','review-continue','view-original','view-overlay'])$(id).disabled=working||Boolean(editor?.drawing);
- const capture=$('capture-details');if(capture&&captureStep!==guidance.step){capture.open=['plant','photo'].includes(guidance.step);captureStep=guidance.step;}
+ const primary={plant:profiles.length?null:'setup-open',photo:guidance.action==='resume'?'resume':guidance.action==='retry'?'photo-retry':'choose-photo',calibration:calibrationGuidance({diameter:Number($('pot-diameter').value),distance:potPicker?.distance(),points:potPicker?.points.length||0,previewReady:Boolean(potPicker?.image),saving:calibrationSaving}).target==='pot-diameter'?'pot-fix':!$('pot-save').disabled?'pot-save':null,analyze:working?null:'analyze',review:'review-continue',approve:guidance.action==='approve'?'approve':null,results:'view-growth'}[guidance.step];
+  for(const id of ['setup-open','choose-photo','photo-retry','resume','analyze','pot-save','pot-fix','review-continue','approve','view-growth'])$(id).classList.toggle('primary',id===primary);
+  $('choose-photo').textContent=file?'Choose another photo':'Choose photo';$('analyze').hidden=guidance.step!=='analyze';$('ready-photo').hidden=guidance.step!=='analyze'||!file||working;
+  $('review-continue').hidden=guidance.step!=='review';
+  if(file&&$('prepared-photo').__sourceFile!==file){if($('prepared-photo').__objectURL)URL.revokeObjectURL($('prepared-photo').__objectURL);const url=URL.createObjectURL(file);$('prepared-photo').src=url;$('prepared-photo').__objectURL=url;$('prepared-photo').__sourceFile=file;}
+  $('ready-photo-context').textContent=(selected?.display_name||selected?.plant_id||'')+' - '+$('photo-date').value;
+  const capture=$('capture-details');if(capture&&captureStep!==guidance.step){capture.open=['plant','photo'].includes(guidance.step);captureStep=guidance.step;}
  $('approval-checklist').replaceChildren();for(const item of guidance.checks){const li=document.createElement('li');li.textContent=(item.complete?'Done: ':item.optional?'Optional: ':'Missing: ')+item.label;li.className=item.complete?'complete':item.optional?'optional':'incomplete';$('approval-checklist').append(li);}
  $('photo-date-help').hidden=!approvalConflict;$('photo-date-help').textContent=approvalConflict;
- $('approve-blocker').hidden=guidance.approval.enabled||analysis?.status==='APPROVED';
- const brief=working?(savingApproval?'Saving measurement...':'Please wait for the current action.'):{date:'A measurement is already saved for this date.',confirm:'Confirm that you checked the leaves.',scale:'Check this photo scale before saving.',editor:stats?.unassigned?'Some leaf pixels need an assignment.':'Check the leaf assignments before saving.'}[guidance.action];
+ const confirmationOnly=confirmationIsOnlyBlocker();$('approve-blocker').hidden=guidance.approval.enabled||analysis?.status==='APPROVED'||confirmationOnly&&!$('approval-error').textContent;
+ const brief=working?(savingApproval?'Saving measurement...':'Please wait for the current action.'):{date:'A measurement is already saved for this date.',confirm:'Confirm that you checked the leaves.',scale:'Check this photo scale before saving.',editor:stats?.unassigned?'Some leaf areas still need to be assigned to a leaf.':'Check the leaf assignments before saving.'}[guidance.action];
  if(brief)$('approval-reason').textContent=brief;
- const fix=$('approval-fix');fix.hidden=guidance.approval.enabled||analysis?.status==='APPROVED';fix.disabled=working||Boolean(editor?.drawing);fix.textContent={date:'Check photo date',editor:'Return to leaf editor',scale:'Review calibration',confirm:'Review confirmation'}[guidance.action]||'Review missing items';
- const targets={plant:'plant',photo:'dropzone',retry:'photo-retry',calibrate:'pot-canvas',analyze:'analyze',review:'editor-viewport',editor:'editor-viewport',scale:'photo-calibration',confirm:'review-confirm',date:'photo-date',approve:'approve',growth:'history-card'};
- for(const n of document.querySelectorAll('.guidance-target'))n.classList.remove('guidance-target');let target=$(targets[guidance.action]);if(guidance.step==='calibration')target=$(!potPicker?.image?'pot-preview-retry':!(Number($('pot-diameter').value)>0)?'pot-diameter':$('pot-save').disabled?'pot-canvas':'pot-save');if(target)target.classList.add('guidance-target');
+ const fix=$('approval-fix');fix.hidden=guidance.approval.enabled||analysis?.status==='APPROVED'||confirmationOnly;fix.disabled=working||Boolean(editor?.drawing);fix.textContent={date:'Check photo date',editor:'Return to leaf editor',scale:'Review calibration',confirm:'Review confirmation'}[guidance.action]||'Review missing items';
+ const targets={plant:'plant',photo:'choose-photo',retry:'photo-retry',calibrate:'pot-canvas',analyze:'analyze',review:'editor-viewport',editor:'editor-viewport',scale:'photo-calibration',confirm:'review-confirm',date:'photo-date',approve:'approve',growth:'history-card'};
+ for(const n of document.querySelectorAll('.guidance-target'))n.classList.remove('guidance-target');let target=$(targets[guidance.action]);if(guidance.step==='calibration'){const hint=calibrationGuidance({diameter:Number($('pot-diameter').value),distance:potPicker?.distance(),points:potPicker?.points.length||0,previewReady:Boolean(potPicker?.image),saving:calibrationSaving});target=hint.target?$(hint.target):null;}if(target)target.classList.add('guidance-target');
 }
 function focusStep(id){const n=$(id);if(!n)return;if(n.closest?.('#capture-details'))$('capture-details').open=true;n.scrollIntoView({behavior:'smooth',block:'center'});if(n.matches?.('button,input,select,[tabindex]'))n.focus({preventScroll:true});}
 async function workflowAction(action=guidance?.action){
@@ -185,7 +204,7 @@ async function pending(profileId=selected?.id,revision=selectionRevision){
  const rows=await(await api('/api/profiles/'+profileId+'/analyses'+(analysis?.profile_id===profileId?'?active_id='+encodeURIComponent(analysis.id):''))).json();
  if(selected?.id!==profileId||revision!==selectionRevision)return;
  resumeId=null;
- resumeId=rows[0]?.id||null;$('resume-row').hidden=!resumeId;renderGuidance();
+ resumeId=rows[0]?.id||null;$('resume-row').hidden=!resumeId;$('resume-context').textContent=resumeId?'For '+(selected?.display_name||selected?.plant_id||'this plant')+' - '+(rows[0].date||'Saved review'):'';renderGuidance();
 }
 async function chooseFile(chosen){
  if(!chosen)return;const photoStarted=Date.now();$('photo-diagnostic').hidden=true;approvalConflict='';calibrationDeferred=false;calibrationSaved=false;reviewVisited=false;
@@ -226,12 +245,12 @@ async function showAnalysis(data){
  analysis=data;dirty=false;reviewVisited=false;mergeSelections.clear();$('approval-error').textContent='';$('tool-message').textContent='';$('photo-date').value=data.date;$('review-card').hidden=false;$('review-confirm').checked=false;
  $('confirm-photo-setup').checked=false;$('photo-calibration-error').textContent='';
  $('review-card').classList.remove('editing');$('editor-tools').hidden=true;$('edit').textContent='Edit lamina mask';$('leaf-tools').open=true;$('tool-drawer').hidden=true;$('zoom').value='fit';$('show-mask').checked=true;
- $('original').src=data.assets.original;$('candidate').src=data.assets.candidate_mask;$('backdrop').src=data.assets.original;
+ $('review-card').dataset.measurementTarget=data.measurement_target||'visible_plant_foreground';$('original').src=data.assets.original;$('candidate').src=data.assets.candidate_mask;$('backdrop').src=data.assets.original;
  if(!editor)editor=new MaskEditor($('stage'),$('mask'),$('cursor'),resetReview,splitLeaf,(state={})=>{if(!editor.drawing){if(!state.rendered)editor.render();renderLeafStats();}renderToolState();buttons();},message=>{$('tool-message').textContent=message;});
  editor.editable=true;editor.visible=true;editor.show(true);editor.load(...data.image_size_px,data.mask_base64);
  if(data.instance_base64)editor.loadInstances(data.instance_base64,data.id,data.instance_metadata);
  editor.mode='select';$('view-original').setAttribute('aria-pressed','false');$('view-overlay').setAttribute('aria-pressed','true');renderLeafStats();renderToolState();calibrationStatus();
- $('review-badge').textContent=data.status==='DRAFT'?'EDITED DRAFT · HUMAN APPROVAL REQUIRED':data.species==='rumex_acetosa'?'UNVALIDATED / REVIEW REQUIRED':'AUTOMATIC PREDICTION · UNVALIDATED / REVIEW REQUIRED';
+ $('review-badge').textContent=data.status==='DRAFT'?'Edited draft \u00b7 Not yet approved':'Automatic estimate \u00b7 Not validated';
  $('candidate-panel').querySelector('h3').textContent=data.automatic_mask_available?'Automatic candidate mask':'Manual mask · no automatic thresholds';
  
  $('review-statement').textContent=(data.calibration?'Same physical pot and camera distance/zoom/plane; full uncropped frame. ':'')+'For '+(selected.display_name||data.plant_id)+' on '+data.date+', I reviewed all visible '+plantName(data)+' leaf blades (lamina) and completeness, excluded petioles, stems, crown structures, moss, other vegetation, medium and pot/background. Pale, yellow, chlorotic and partially browned blades remain included. I accept '+(data.calibration?'the setup’s approximate projected-area calibration.':'pixels-only measurement without a physical scale.')+' I also reviewed the visible leaf-blade identities and their individual areas. No hidden tissue is inferred.';
@@ -321,7 +340,7 @@ async function history(profileId=selected?.id,revision=selectionRevision){
  if(!profileId)return;
  const data=await(await api('/api/profiles/'+profileId+'/history')).json(),g=data.growth;
  if(selected?.id!==profileId||revision!==selectionRevision)return;
- historyMeasurements=data.measurements;$('history-card').hidden=!data.measurements.length;
+ historyMeasurements=data.measurements;$('history-card').hidden=false;$('history-empty').hidden=Boolean(data.measurements.length);$('history-single').hidden=data.measurements.length!==1;$('history-context').textContent=(selected?.display_name||selected?.plant_id||'This plant')+' - '+data.measurements.length+' approved measurement'+(data.measurements.length===1?'':'s');$('export').hidden=!data.measurements.length;$('graph-metric').closest('label').hidden=!data.measurements.length;$('chart').hidden=!data.measurements.length;
  $('current').textContent=formatArea(g.current_area_cm2);$('previous').textContent=formatArea(g.previous_area_cm2);
  $('daily-growth').textContent=g.daily_growth_cm2===null?'—':(g.daily_growth_cm2>=0?'+':'')+g.daily_growth_cm2.toFixed(3)+' cm²/day';
  $('percentage').textContent=g.percentage_growth===null?'—':(g.percentage_growth>=0?'+':'')+g.percentage_growth.toFixed(1)+'%';
@@ -332,16 +351,16 @@ async function history(profileId=selected?.id,revision=selectionRevision){
  graph(data.measurements);
 }
 function graph(rows){
- const series=graphSeries(rows,$('graph-metric').value||'total'),points=series.points;$('chart').replaceChildren();
+ const view=historyView(rows,$('history-target').value);$('history-target').value=view.target;$('history-target-label').hidden=!view.hasLegacy;const series=graphSeries(view.rows,$('graph-metric').value||'total'),points=series.points;if(view.target==='visible_plant_foreground')series.label={total:'Legacy foreground area',count:'Legacy region count',mean:'Mean legacy region area',median:'Median legacy region area'}[$('graph-metric').value||'total'];$('chart').replaceChildren();
  if(!points.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='No approved values for this metric.';$('chart').append(empty);return;}
  const chartWidth=Math.max(250,$('chart').clientWidth||1000),ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 '+chartWidth+' 220');svg.setAttribute('role','img');svg.setAttribute('aria-label',series.label+' in '+series.unit);
  const add=(name,attrs,text)=>{const node=document.createElementNS(ns,name);for(const[k,v]of Object.entries(attrs))node.setAttribute(k,String(v));if(text!==undefined)node.textContent=text;svg.append(node);return node;};
  const first=points[0].time,last=points.at(-1).time,rawTop=Math.max(...points.map(p=>p.value))*1.15||1,top=series.unit==='leaves'?Math.max(1,Math.ceil(rawTop)):rawTop,xy=p=>[55+(p.time-first)/(last-first||86400000)*(chartWidth-75),170-p.value/top*140];
  const countStep=Math.max(1,Math.ceil(top/3)),ticks=series.unit==='leaves'?Array.from({length:Math.floor(top/countStep)+1},(_,i)=>i*countStep):[0,top/3,2*top/3,top];
- for(const v of ticks){const y=170-v/top*140;add('line',{x1:50,y1:y,x2:chartWidth-20,y2:y,stroke:'#e1e8df'});add('text',{x:45,y:y+4,'text-anchor':'end',fill:'#718477','font-size':11},series.unit==='leaves'?String(v):v.toFixed(2));}
- add('text',{x:10,y:17,fill:'#718477','font-size':11},series.label+' · '+series.unit);
+ for(const v of ticks){const y=170-v/top*140;add('line',{x1:50,y1:y,x2:chartWidth-20,y2:y,stroke:'#e1e8df'});add('text',{x:45,y:y+4,'text-anchor':'end',fill:'#50645b','font-size':12},series.unit==='leaves'?String(v):v.toFixed(2));}
+ add('text',{x:10,y:17,fill:'#50645b','font-size':13},series.label+' · '+series.unit);
  points.forEach((p,i)=>{const[x,y]=xy(p),r=p.record,previous=points[i-1]?.record;if(i&&previous.calibration_id===r.calibration_id&&(previous.measurement_target||'visible_plant_foreground')===(r.measurement_target||'visible_plant_foreground')){const[px,py]=xy(points[i-1]);add('line',{x1:px,y1:py,x2:x,y2:y,stroke:'#387d52','stroke-width':2});}const circle=add('circle',{cx:x,cy:y,r:5,fill:r.measurement_target==='visible_leaf_lamina'?'#216d4d':'#718477','data-measurement-id':r.id,'data-captured-at':p.label,'data-value':p.value});const title=document.createElementNS(ns,'title');title.textContent=p.label+': '+p.value.toFixed(series.unit==='leaves'?0:4)+' '+series.unit+' · '+(r.measurement_target==='visible_leaf_lamina'?'leaf lamina':'legacy foreground');circle.append(title);});
- add('text',{x:55,y:198,fill:'#718477','font-size':11},points[0].label.slice(0,10));if(points.length>1)add('text',{x:chartWidth-20,y:198,fill:'#718477','font-size':11,'text-anchor':'end'},points.at(-1).label.slice(0,10));$('chart').append(svg);
+ add('text',{x:55,y:198,fill:'#50645b','font-size':12},points[0].label.slice(0,10));if(points.length>1)add('text',{x:chartWidth-20,y:198,fill:'#50645b','font-size':12,'text-anchor':'end'},points.at(-1).label.slice(0,10));$('chart').append(svg);
 }
 function confirmDiscard(){return !dirty||window.confirm('Discard unsaved mask corrections? Save a draft first to keep them.');}
 function calibrationFields(){/* Current-photo calibration is guided inline. */}
@@ -350,7 +369,7 @@ function potChanged(){
  $('pot-canvas').hidden=!potPicker?.image;
  $('pot-step').textContent=!potPicker?.points.length?'1 · Tap the first outer edge':potPicker.points.length===1?'2 · Tap the opposite outer edge':'3 · Save calibration';
  $('pot-summary').textContent=d===null?'Your photo stays here while you mark the rim.':d<1?'Choose two different points on opposite sides.':cm>0?'Diameter '+d.toFixed(1)+' px · approximate scale '+(cm/d).toFixed(6)+' cm per pixel':'Enter the physical outer pot diameter above.';
- potButtons();$('pot-preview-retry').hidden=Boolean(potPicker?.image);$('pot-action-hint').textContent=!potPicker?.image?'The photo is ready. Retry the scale preview or review in pixels first.':$('pot-save').disabled?'Mark the two opposite outer-rim points to set the image scale.':'Both rim points are marked. Save calibration for an approximate cm\u00b2 estimate.';renderGuidance();
+ potButtons();$('pot-preview-retry').hidden=Boolean(potPicker?.image);const hint=calibrationGuidance({diameter:cm,distance:d,points:potPicker?.points.length||0,previewReady:Boolean(potPicker?.image),saving:calibrationSaving});$('pot-action-hint').textContent=hint.message;$('pot-fix').hidden=hint.ready||calibrationSaving;$('pot-fix').textContent=hint.target==='pot-diameter'?'Enter pot diameter':hint.target==='pot-preview-retry'?'Retry scale preview':'Return to the rim points';if(hint.target==='pot-diameter')$('pot-step').textContent='Pot diameter needed';renderGuidance();
 }
 function potButtons(){const d=potPicker?.distance(),cm=Number($('pot-diameter').value);$('pot-save').disabled=calibrationSaving||!(d>=1&&Number.isFinite(cm)&&cm>0&&cm<=1000);$('pot-undo').disabled=calibrationSaving||!potPicker?.points.length;$('pot-redo').disabled=calibrationSaving;}
 async function openSetup(mode){
@@ -471,6 +490,7 @@ $('merge-confirm').onclick=()=>{try{editor.mergeLeaves([...mergeSelections]);mer
 $('tool-done').onclick=()=>{editor.cancelDrawing();leafMode('select');$('tool-drawer').hidden=true;};
 $('overlay-opacity').oninput=()=>{editor.opacity=Number($('overlay-opacity').value)/100;editor.render();};
 $('graph-metric').onchange=()=>graph(historyMeasurements);
+$('history-target').onchange=()=>graph(historyMeasurements);
 window.addEventListener('resize',()=>{if(historyMeasurements.length)graph(historyMeasurements);});
 $('leaf-delete').onclick=()=>{try{editor.deleteLeaf(editor.selectedLeaf);leafMode('select');$('tool-message').textContent='Leaf removed; its lamina pixels are unassigned. Use Add / Reassign or erase confirmed non-lamina tissue.';say('Leaf removed; its tissue remains unassigned until you reassign it or edit the lamina mask.');}catch(e){say(e.message,true);}};
 $('leaf-add').onclick=()=>{try{editor.addLeaf();leafMode('add');renderLeafStats();}catch(e){say(e.message,true);}};
@@ -480,6 +500,12 @@ window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.return
 if($('login-form'))$('login-form').onsubmit=async e=>{e.preventDefault();try{await json('/api/login',{token:$('access-key').value});$('access-key').value='';await init();}catch(error){say(error.message,true);}};
 $('logout').onclick=async()=>{if(!confirmDiscard())return;await json('/api/logout',{});if(globalThis.leafScienceSession?.integrated)location.assign('/signin');else location.reload();};
 $('copy-photo-diagnostic').onclick=async()=>{const text=$('photo-diagnostic-text').textContent;try{await navigator.clipboard.writeText(text);$('photo-copy-status').textContent='Error details copied. No photo, filename or account information is included.';}catch{const range=document.createRange();range.selectNodeContents($('photo-diagnostic-text'));const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);$('photo-copy-status').textContent='Select and copy these error details.';}};
+globalThis.leafSessionRecovery=()=>{$('session-recovery').hidden=false;};
+$('session-reconnect').onclick=reconnectSession;
+$('pot-fix').onclick=()=>{if(working)return;const hint=calibrationGuidance({diameter:Number($('pot-diameter').value),distance:potPicker?.distance(),points:potPicker?.points.length||0,previewReady:Boolean(potPicker?.image),saving:calibrationSaving});if(hint.target==='pot-preview-retry')$('pot-preview-retry').click();else focusStep(hint.target);};
+$('review-change-photo').onclick=()=>$('photo').click();$('calibration-change-photo').onclick=()=>$('photo').click();
+$('choose-photo').onclick=()=>$('photo').click();$('change-photo').onclick=()=>{focusStep('dropzone');$('photo').click();};
+$('progress-details').ontoggle=()=>{$('progress-toggle-label').textContent=$('progress-details').open?'Hide steps':'View steps';};
 $('workflow-action').onclick=()=>workflowAction().catch(e=>say(e.message,true));
 $('workflow-tips').onclick=()=>{const hidden=!$('workspace').classList.contains('tips-hidden');try{const key=tipsKey();if(key)localStorage.setItem(key,hidden?'hidden':'visible');}catch{}syncTips();};
 $('review-continue').onclick=()=>workflowAction('review');
@@ -487,7 +513,7 @@ $('approval-fix').onclick=()=>workflowAction(guidance?.action).catch(e=>say(e.me
 $('view-original').onclick=()=>viewPhoto(true);$('view-overlay').onclick=()=>viewPhoto(false);
 $('view-growth').onclick=()=>focusStep('history-card');
 $('another-photo').onclick=()=>{if(working)return;approvalConflict='';analysis=null;file=null;pendingPhoto=null;imageProvenance=null;uploadedReview=null;uploadRequestId=null;dirty=false;calibrationDeferred=false;calibrationSaved=false;reviewVisited=false;$('review-card').hidden=true;$('result-card').hidden=true;$('calibration-card').hidden=true;$('photo-progress').textContent='';$('file-label').textContent='Take a photo or choose JPEG, PNG or HEIC';buttons();focusStep('dropzone');};
-for(const n of document.querySelectorAll('[data-workflow-step]'))n.onclick=()=>{const target={plant:'plant',photo:'dropzone',calibration:'calibration-open',analyze:'analyze',review:'editor-viewport',approve:'approval-guidance',results:'result-card'}[n.dataset.workflowStep];focusStep(target);};
+for(const n of document.querySelectorAll('[data-workflow-step]'))n.onclick=()=>{const target={plant:'plant',photo:'choose-photo',calibration:'calibration-open',analyze:'analyze',review:'editor-viewport',approve:'approval-guidance',results:'result-card'}[n.dataset.workflowStep];focusStep(target);};
 
 function accountChrome(session){
  const header=document.querySelector('header');header.classList.add('integrated-header');
@@ -513,8 +539,9 @@ async function init(){working=true;buttons();try{
    if(session.user?.status!=='ACTIVE') {location.assign('/pending');return;}
    if(!session.user.email_verified_at&&!session.email_verification_deferred){location.assign('/profile');return;}
   }
-  if(!session.authenticated)return;syncTips();
-  config=await(await api('/api/config')).json();setupDefault=(await(await api('/api/setup')).json()).default_calibration;
+  if(!session.authenticated)return;$('progress-details').open=Boolean(globalThis.matchMedia?.('(min-width:600px)').matches);syncTips();
+  if(globalThis.matchMedia){const wide=matchMedia('(min-width:600px)');wide.addEventListener('change',e=>{$('progress-details').open=e.matches;});}
+   config=await(await api('/api/config')).json();setupDefault=(await(await api('/api/setup')).json()).default_calibration;
   const now=new Date();$('photo-date').value=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
   await refreshProfiles(new URLSearchParams(location.search).get('plant'));working=false;buttons();say(profiles.length?'Select a plant and today’s photo.':'Create a plant profile to begin.');renderGuidance();
  }catch(error){say(error.message,true);}finally{working=false;buttons();}

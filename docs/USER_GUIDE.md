@@ -1,96 +1,102 @@
-# iPhone ile adım adım Leaf Research
+# How to measure a plant from your phone
 
-Her görüntü gerçek uygulamanın 390 piksel genişliğindeki telefon görünümüdür. Görüntüye dokunarak büyütün. Örnekler yalnızca yapay bir bitki ve yerel deneme hesabıyla hazırlanmıştır; araştırma verisi değildir. Safari'nin Photo Library menüsü ve iCloud ekranı iOS'a göre değişir; burada uygulamanın kendi ekranları gösterilir.
+These are actual phone-sized views of the application, using a synthetic plant and test account. Tap a screenshot to enlarge it. The Photo Library menu on your iPhone may look different.
 
-Analyze ekranındaki yedi adım gerçek duruma göre ilerler; analiz veya onay kendiliğinden başlamaz. Üstteki kısa yönlendirmeyi ve ana düğmeyi izleyin. **Hide tips / Show tips** ile isteğe bağlı ipuçlarını kapatıp açabilirsiniz; bitmiş adımlar düzenlenebilir kalır.
+Follow the instruction beside the current control. **View steps** opens the progress list; completed steps can be revisited. **Hide tips / Show tips** controls optional guidance. Analysis and approval always require your action.
 
-## 1. Sign in — giriş yapın
+## 1. Sign in
 
-Kendi e-posta adresinizi (1) ve şifrenizi (2) yazın; **Sign in** (3) düğmesine dokunun. İstenirse e-postanızı doğrulayın; kurum erişimi için yönetici onayı da gerekir.
+Enter your email (1) and password (2), then press **Sign in** (3). New users choose **Create account**, verify their email, and wait for institutional approval before analyzing plants.
 
-![Telefon ekranında boş Email ve Password alanları ile Sign in düğmesinin işaretli konumları](../src/webapp/static/tutorial/step-01.webp)
+![Empty Email and Password fields and the Sign in button on the actual phone-sized sign-in screen](../src/webapp/static/tutorial/step-01.webp)
 
-## 2. Bitkiyi seçin veya ekleyin
+## 2. Choose or add a plant
 
-**Plant** (1) listesinden bitkinizi seçin; yeni bitki için **+ Add plant** (2) ile adını ve türünü girip **Add plant** düğmesine dokunun.
+Choose your plant from **Plant** (1). For a new plant, press **+ Add plant** (2), enter its name and species, then save with **Add plant**.
 
-![Telefon görünümünde Plant listesi ve Add plant düğmesi işaretli](../src/webapp/static/tutorial/step-02.webp)
+![Plant selection and Add plant controls marked on the actual mobile interface](../src/webapp/static/tutorial/step-02.webp)
 
-## 3. Photo Library'den fotoğraf seçin
+## 3. Choose a photo
 
-İşaretli **Take a photo or choose JPEG, PNG or HEIC** alanına dokunun; iPhone menüsünden **Photo Library** ve fotoğrafınızı seçin. Saksının dış kenarı tam görünür, net ve tepeden çekilmiş bir JPEG, PNG veya HEIC/HEIF fotoğraf kullanın; ölçüm tarihini kontrol edin.
+Press **Choose photo** (1), then choose **Photo Library** in the iPhone picker. Select a clear overhead photo of the whole plant with the full outer pot rim visible. Check **Photo date**. JPEG, PNG and HEIC/HEIF are supported.
 
-![Telefonun gerçek fotoğraf seçme alanı Photo Library seçimini başlatmak için işaretli](../src/webapp/static/tutorial/step-03.webp)
+![The actual Choose photo button marked beside the selected plant and photo date](../src/webapp/static/tutorial/step-03.webp)
 
-## 4. Saksı ölçeğini kaydedin
+## 4. Set the photo scale
 
-**4a — Çap:** Cetvelle ölçtüğünüz saksı DIŞ çapını santimetre olarak **Pot outer diameter (cm)** (1) alanına yazın. Görseldeki 12 cm yalnızca örnektir.
+**4a - Enter the diameter:** Measure the outside of the pot rim with a ruler. Enter that value in **Pot outer diameter (cm, required)** (1). The example 12 cm is not a value to copy.
 
-![Pot outer diameter alanına örnek 12 cm girilmiş gerçek telefon kalibrasyon ekranı](../src/webapp/static/tutorial/step-04.webp)
+![Required pot outer diameter field with an illustrative 12 cm value on the mobile calibration screen](../src/webapp/static/tutorial/step-04.webp)
 
-**4b — İlk nokta:** Fotoğrafta saksının dış kenarındaki ilk noktaya dokunun (2); yaprak sınırını veya iç kenarı seçmeyin.
+**4b - First point:** Tap the first outside edge of the pot rim (2). Choose the outer rim, not the leaf boundary or inside edge.
 
-![Saksının dış kenarında ilk işaretçinin ve karşı kenarı seçme isteminin göründüğü telefon ekranı](../src/webapp/static/tutorial/step-05.webp)
+![First outside-rim tap location marked on the actual calibration photo before the first point is selected](../src/webapp/static/tutorial/step-05.webp)
 
-**4c — Karşı nokta:** Merkezden geçen çapın karşı DIŞ kenarına dokunun (3); iki işaretçi arasındaki çizgiyi kontrol edin.
+**4c - Opposite point:** Tap the opposite outside edge (3), across the pot center. Check that the line spans the outside diameter.
 
-![Saksının iki karşı dış kenarındaki işaretçiler ile aralarındaki çap çizgisinin gerçek telefon görünümü](../src/webapp/static/tutorial/step-06.webp)
+![Opposite outside-rim tap location marked while the first selected rim point remains visible](../src/webapp/static/tutorial/step-06.webp)
 
-**4d — Kaydet:** Aşağı kaydırıp **Save calibration** (4) düğmesine dokunun. İşaretçiyi sürükleyerek veya **Undo last point** ile düzeltebilirsiniz.
+**4d - Save:** Press **Save calibration** (4). Drag a marker or use **Undo last point** to correct it. **Retry points** starts the points again; pinch to zoom.
 
-![Kalibrasyon açıklamaları ve işaretli Save calibration düğmesini gösteren telefon ekranı](../src/webapp/static/tutorial/step-07.webp)
+![Selected diameter line and Save calibration button on the actual phone-sized interface](../src/webapp/static/tutorial/step-07.webp)
 
-Eğik, gizli veya kırpılmış saksı kenarıyla ölçek kurmayın; fotoğrafı yeniden çekin. Kamera konumu, yakınlaştırma, kadraj veya saksı değiştiğinde yeniden kalibre edin. Ölçek doğrulanamıyorsa **Review leaves first (pixels only)** ile yaprakları inceleyip kalibrasyonu sonra tamamlayabilirsiniz; önceki onaylı ölçümler değişmez.
+If **Pot diameter needed** appears, press **Enter pot diameter** and enter the measured value. Your selected points are kept.
 
-## 5. Analyze photo — analizi bekleyin
+Use a full, nearly circular rim in an overhead photo. A tilted, hidden or cropped rim needs another photo. Recalibrate if the pot, camera distance, zoom or crop changes; matching image dimensions alone do not verify physical scale.
 
-**Ready to analyze** durumunda **Analyze photo** (1) düğmesine dokunun; **Analyzing** sırasında sayfayı açık tutun. Sunucu ilk kez açılıyorsa birkaç dakika sürebilir; bu, fotoğraf hazırlama hatasından ayrıdır.
+If scale is unavailable, choose **Review without cm² for now**. You can inspect the leaves in pixels and complete calibration separately; pixel-only results are not reported as cm². Earlier approved measurements remain unchanged.
 
-![Hazır fotoğraf ve işaretli Analyze photo düğmesinin gerçek telefon görünümü](../src/webapp/static/tutorial/step-08.webp)
+## 5. Analyze the photo
 
-## 6. Yaprakları kontrol edin ve düzeltin
+When **Photo ready** appears, press **Analyze photo** (1). Keep the page open while the status changes from uploading to analysis and review preparation. The first analysis may take several minutes while the service starts; this is separate from photo preparation.
 
-**Colored leaves** (1) ve **Original photo** (2) ile fotoğrafı karşılaştırın. Görünen her yaprağın ayrı bir rengi olmalı; görünmeyen dokuyu boyamayın.
+![Prepared-photo preview and the actual Analyze photo button marked on a mobile screen](../src/webapp/static/tutorial/step-08.webp)
 
-![Gerçek telefon ekranında Colored leaves ve Original photo düğmeleri ile renkli yaprak maskesi](../src/webapp/static/tutorial/step-09.webp)
+## 6. Review the leaves
 
-Gerekirse **Paint** veya **Erase** ile sınırı düzeltin; **Leaf corrections** altında **Split** (1), **Merge** (2) ve **Add leaf** (3) gibi yaprak düzeltmeleri bulunur. Etkin aracın kısa açıklamasını izleyin.
+Switch between **Colored leaves** (1) and **Original photo** (2). Each visible leaf should have its own color. Correct mistakes before approving; do not paint tissue that is hidden or absent.
 
-![Gerçek telefon ekranında Split Merge ve Add leaf araçlarının işaretli olduğu yaprak düzeltme grubu](../src/webapp/static/tutorial/step-10.webp)
+![Colored leaves and Original photo controls marked above the actual leaf overlay](../src/webapp/static/tutorial/step-09.webp)
 
-- **Split:** Bir yaprağı seçip ikiye ayıran bir çizgi çizin.
-- **Merge:** Aynı yaprağın parçalarını seçip **Merge selected leaves** ile birleştirin.
-- **Reassign:** Doğru yaprağı seçip aktarılacak alanı boyayın.
-- **Add leaf:** Eksik görünen yaprağı boyayarak yeni yaprak oluşturun.
-- **Delete leaf:** Kimliği kaldırır; kalan dokuyu yeniden atayın veya gerçekten yaprak değilse silin.
-- **Undo / Redo:** Düzeltmeyi geri alın veya yineleyin. İki parmakla fotoğrafı taşıyıp yakınlaştırın.
-- **Save draft:** Onaylamadan ara kaydı saklar. Geri döndüğünüzde aynı bitkiyi seçip **Resume unfinished review** kullanın.
+Use **Paint** and **Erase** for leaf boundaries. Open **Leaf corrections** for **Split** (1), **Merge** (2), **Reassign**, **Add leaf** (3) and **Delete leaf**. The active tool has a short instruction beside the image.
 
-## 7. Ölçümü onaylayın
+![Split, Merge and Add leaf controls marked in the actual grouped mobile editing menu](../src/webapp/static/tutorial/step-10.webp)
 
-**Review measurement** ile tamamlama listesine geçin. Yaprak sayısını, alanları ve ölçeği kontrol edip inceleme kutusunu (1) işaretleyin; **Approve measurement** (2) düğmesine dokunun. Eksik bir madde varsa **Return to leaf editor**, **Review calibration** veya **Review confirmation** düğmesiyle düzeltin. İnsan onayı zorunludur; piksel olarak kaydedilen bir ölçüm cm² diye gösterilmez.
+- **Select:** Tap a colored leaf to select it.
+- **Split:** Select a leaf, then draw a line through it to divide it.
+- **Merge:** Select leaves in **Individual leaf areas**, then press **Merge selected leaves**.
+- **Reassign:** Choose the correct leaf, then paint the area to transfer.
+- **Add leaf:** Paint a missing visible leaf. Release to create its assignment.
+- **Delete leaf:** Removes the assignment. Reassign the remaining tissue, or erase it if it is not leaf blade.
+- **Undo / Redo:** Restore or repeat an edit. Use **Pan / zoom** or two fingers to move and zoom the photo.
+- **Save draft:** Save without approving. Return to the same plant and choose **Continue previous review** to resume.
 
-![Telefon ekranında işaretli inceleme onay kutusu ve etkin Approve measurement düğmesi](../src/webapp/static/tutorial/step-11.webp)
+## 7. Approve the measurement
 
-## 8. Büyüme geçmişi ve CSV
+Press **Review measurement**. Check the plant, photo, leaf count, total, mean and median area, and scale status. Tick the review checkbox (1), then press **Approve measurement** (2). Human review remains required.
 
-Onaydan sonra **View growth** ile geçmişe veya **Analyze another photo** ile yeni fotoğrafa geçin. Bitkinin **Growth history** bölümünde **Graph metric** (2) ile grafik ölçütünü seçin; **Export CSV** (1) ile geçmişi indirin. Aynı ölçüm hedefini ve tutarlı çekim koşullarını karşılaştırın.
+![Required human-review checkbox and enabled Approve measurement button marked on the actual mobile interface](../src/webapp/static/tutorial/step-11.webp)
 
-![Gerçek telefon görünümünde Growth history başlığı, Export CSV düğmesi ve Graph metric listesi işaretli](../src/webapp/static/tutorial/step-12.webp)
+If approval is blocked, use the displayed repair action, such as **Return to leaf editor**, **Review calibration** or **Check photo date**. Resolve the stated problem before approving.
 
-## Alanın anlamı
+## 8. Growth history and CSV
 
-Fotoğraf → otomatik yaprak önerisi → insan kontrolü → piksel sayımı → doğrulanmış kalibrasyon → onaylı büyüme geçmişi.
+After **Measurement saved**, press **View growth history**, or choose **Analyze another photo**. In **Growth history**, choose **Graph metric** (2) and use **Export CSV** (1) to download the saved measurements.
 
-İncelenen piksel sayısı × (santimetre/piksel)², saksı kenarı düzlemindeki yaklaşık izdüşüm alanını verir. Doğrulanmış ölçek yoksa alan piksel olarak kalır. Bu gerçek 3B yaprak yüzey alanı değildir; örtüşen veya gizli doku tek fotoğraftan ölçülemez. Otomatik maske ground truth değildir; deneyiniz için bağımsız gerçek ölçümlerle doğrulayın.
+![Growth history with Export CSV and Graph metric marked on the actual phone-sized interface](../src/webapp/static/tutorial/step-12.webp)
 
-## Sorun olursa
+Growth needs measurements from additional dates. Compare the same measurement target and consistent capture conditions. Legacy foreground measurements remain separate from reviewed leaf-blade measurements.
 
-- **Fotoğraf hazırlanamadı:** Ekrandaki nedeni okuyun; fotoğraf seçili kaldıysa **Try again** kullanın veya fotoğraf seçme alanına dokunarak başka fotoğraf seçin. Bitkiyi yeniden oluşturmanız gerekmez. HEIC açılamıyorsa fotoğrafı JPEG olarak dışa aktarıp seçin.
-- **Analiz uzun sürüyor:** İlk sunucu açılışını bekleyin; hata sonrası **Resume unfinished review** ile tamamlanıp tamamlanmadığını kontrol edin.
-- **Bağlantı kesildi:** Bağlantıyı düzeltip ekrandaki yeniden deneme eylemini kullanın; sayfayı yenilemeden başka fotoğraf seçebilirsiniz.
-- **Oturum sona erdi:** Yeniden giriş yapın, aynı bitkiyi seçin ve kaydedilmiş incelemeyi açın; henüz sunucuya ulaşmamış bir fotoğrafı yeniden seçmeniz gerekebilir.
-- **Kalibrasyon eksik:** DIŞ çapı ve karşı DIŞ kenar noktalarını kontrol edin; yaprak incelemesi ile ölçek doğrulaması ayrı adımlardır.
-- **Onay kaydedilemedi:** Taslağı saklayın; tekrar onaylamadan önce geçmişte tamamlanmış ölçüm olup olmadığını kontrol edin.
+## What the area means
 
-- **Aynı bitki ve tarihte kayıt var:** Önceki onaylı ölçüm değişmez. **Check photo date** ile fotoğrafın gerçek tarihini kontrol edin; tarih doğruysa geçmişteki mevcut kaydı inceleyin. Sadece onay alabilmek için tarihi değiştirmeyin.
+The reviewed pixel count multiplied by the squared centimeters-per-pixel scale estimates visible projected area at the reference plane. Without verified scale, area remains in pixels. This is not true 3D leaf surface area; one photo cannot measure hidden or overlapping tissue. The automatic mask is a proposal, not ground truth. Validate your research measurements independently.
+
+## Recover from a problem
+
+- **Photo preparation failed:** Read the stated reason. Use **Try again** to retry the retained selection, or **Choose photo / Choose another photo** to reselect. You do not need to recreate the plant. **Copy error details** provides diagnostic text for support.
+- **Analysis is taking time:** Keep the page open and follow the status. After a failure, retry or use **Continue previous review** to check the unfinished analysis.
+- **Connection interrupted:** Restore the connection and use the displayed retry action. Keep the page open to retain local work.
+- **Session expired:** Keep this page open. Use **Sign in in another tab** to sign in to the same account, then return and press **Reconnect**. The photo and unsaved edits remain in this open tab; do not refresh it.
+- **Scale needs attention:** Enter the measured outside diameter and select the two opposite outside-rim points. Leaf review and physical scale verification are separate tasks.
+- **A measurement is already saved for this plant and date:** Use **Check photo date** to verify the actual capture date, or inspect the saved history. Do not change the date just to bypass the duplicate check. Existing approved measurements stay unchanged.
+- **Approval did not complete:** Read the error and check growth history before trying again. Save a draft when the connection permits.

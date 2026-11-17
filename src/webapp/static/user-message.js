@@ -1,6 +1,6 @@
 // Keep actionable advice separate from optional diagnostic details.
 export function userMessage(error,context=''){
- const text=String(error?.message||error||'Something went wrong.');
+ const text=String(error?.message||error||'The request could not finish. Try again.');
  if(/failed to fetch|networkerror|network request|offline|connection/i.test(text))return 'Connection interrupted. Your photo and edits are still here. Check your connection and tap Retry.';
  if(/timed out|timeout|aborterror/i.test(text))return 'This is taking longer than expected. Your work is still here. Tap Retry to check and continue.';
  if(/dimensions|height differs|reference.*mismatch|camera geometry|physical scale|calibration.*payload|recalibrat/i.test(text))return 'Please mark the two outer edges of the pot in this photo to set its scale. Your leaf edits will stay here.';

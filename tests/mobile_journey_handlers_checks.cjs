@@ -37,6 +37,7 @@ const results=[];
 async function check(name,fn){try{await fn();results.push({name,status:'PASS'});}catch(e){results.push({name,status:'FAIL',detail:e.message});}}
 (async()=>{
  policy=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('src/webapp/static/review-state.js','utf8')).toString('base64'));
+ policy={...policy,...await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('src/webapp/static/calibration-guidance.js','utf8')).toString('base64'))};
  await check('Prepared photo survives calibration preview decode failure and can analyze pixels',async()=>{
   const f=fixture();f.env.selected.calibration=null;f.env.api=async()=>prepared('ready');f.env.potPicker.load=async()=>{throw Error('EncodingError');};
   await f.chooseFile(new File(['photo'],'photo.jpg',{type:'image/jpeg'}));

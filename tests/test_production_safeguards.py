@@ -89,7 +89,7 @@ class TestProductionSafeguards(unittest.TestCase):
         html=self.client.get('/').text;js=self.client.get('/static/app.js').text
         for value in ['candidate-engine','model-note','qc-banner','id="pending"']:
             self.assertNotIn(value,html)
-        self.assertIn('Resume unfinished review',html)
+        self.assertIn('Continue previous review',html)
         self.assertNotIn('candidateOptions',js)
 
     def test_predict_version_serializes_cold_load_and_inference(self):

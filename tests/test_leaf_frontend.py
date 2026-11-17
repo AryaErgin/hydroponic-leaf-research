@@ -7,7 +7,7 @@ class TestLeafFrontend(unittest.TestCase):
         r=subprocess.run(['node','tests/leaf_editor_checks.cjs'],cwd=ROOT,capture_output=True,text=True,timeout=30)
         self.assertEqual(r.returncode,0,r.stdout+r.stderr)
 
-    def test_capture_date_change_preserves_assignments_and_rebinds_analysis(self):
+    def test_capture_date_change_preserves_assignments_on_same_analysis(self):
         r=subprocess.run(['node','tests/leaf_daily_checks.cjs'],cwd=ROOT,capture_output=True,text=True,timeout=30)
         self.assertEqual(r.returncode,0,r.stdout+r.stderr)
 

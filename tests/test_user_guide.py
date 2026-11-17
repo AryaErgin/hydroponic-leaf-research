@@ -10,6 +10,7 @@ from test_integrated_app import application, login
 
 
 def test_runtime_guide_matches_authoritative_markdown():
+    assert '<html lang="en">' in (ROOT / 'src/webapp/static/user-guide.html').read_text(encoding='utf-8')
     build = runpy.run_path(str(ROOT / 'scripts/build_user_guide.py'))
     assert (ROOT / 'src/webapp/static/user-guide.html').read_text(encoding='utf-8') == build['render'](
         (ROOT / 'docs/USER_GUIDE.md').read_text(encoding='utf-8'))
@@ -24,7 +25,7 @@ def test_public_guide_never_authorizes_or_opens_scientific_data(application, mon
     assert response.status_code == 200
     assert response.headers['content-type'].startswith('text/html')
     assert '1. Sign in' in response.text
-    assert '8. Büyüme geçmişi ve CSV' in response.text
+    assert '8. Growth history and CSV' in response.text
     assert '<script' not in response.text
     assert response.text.count('<figure') == 12
     assert response.text.count('<img ') == 12
@@ -44,7 +45,7 @@ def test_guide_is_linked_from_real_analyzer_and_navigation(application):
     # made the mobile navigation confusing. The account app retains its own help.
     assert page.text.count('href="/help"') == 1
     source = (ROOT / 'src/auth_preview/static/app.js').read_text(encoding='utf-8')
-    assert "['User guide','/help']" in source
+    assert "['How to use','/help']" in source
 
 
 def test_renderer_escapes_literal_markup():
@@ -61,7 +62,7 @@ def test_tutorial_images_have_safe_native_enlargement_and_alt_text():
     assert 'href="/science-static/tutorial/step-01.webp"' in page
     assert 'target="_blank" rel="noopener"' in page
     assert 'alt="Select the plant &amp; Add plant button"' in page
-    assert 'loading="lazy"' in page and 'Büyütmek için dokunun' in page
+    assert 'loading="lazy"' in page and 'Tap to enlarge' in page
     relative = build['render']('# Test\n\n![Select plant](../src/webapp/static/tutorial/step-01.webp)\n')
     assert 'src="/science-static/tutorial/step-01.webp"' in relative
     for unsafe in ('https://example.test/private.png', '/science-static/tutorial/../private.webp', 'javascript:alert(1)'):
@@ -120,7 +121,7 @@ def test_firebase_shell_retains_public_guide_without_identity_provider_calls(mon
             integrated=True, require_verified_email=True), RefuseGateway(), base/'science')
         with TestClient(app) as client:
             page = client.get('/help')
-            assert page.status_code == 200 and '8. Büyüme geçmişi ve CSV' in page.text
+            assert page.status_code == 200 and '8. Growth history and CSV' in page.text
             assert client.get('/science-static/user-guide.css').status_code == 200
             assert 'href="/help"' in client.get('/signin').text
             assert client.get('/api/profiles').status_code == 401

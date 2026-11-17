@@ -31,7 +31,7 @@ const flush=()=>new Promise(resolve=>setImmediate(resolve));
    await api(url,{method,body:data,headers:{'X-Existing':'kept'}});
    const call=calls.at(-1);assert.equal(call.headers.get('X-CSRF-Token'),method==='GET'?null:'shared-session-token');assert.equal(call.headers.get('X-Existing'),'kept');assert.equal(call.body,data);assert.equal(call.credentials,'same-origin');
   }
-  await assert.rejects(api('/api/expired'),/Request failed: HTTP 401/);assert.deepEqual(redirects,['/signin']);
+  let recoveryShown=0;globalThis.leafSessionRecovery=()=>recoveryShown++;await assert.rejects(api('/api/expired'),/session expired.*Keep this page open/i);assert.deepEqual(redirects,[],'Expired science requests must retain unsaved work in the current tab');assert.equal(recoveryShown,1);delete globalThis.leafSessionRecovery;
   // Standalone mode still works without an auth session or a CSRF token.
   delete globalThis.leafScienceSession;await api('/api/profiles');assert.equal(calls.at(-1).headers.has('X-CSRF-Token'),false);
  }finally{if(originalSession===undefined)delete globalThis.leafScienceSession;else globalThis.leafScienceSession=originalSession;if(originalLocation===undefined)delete globalThis.location;else globalThis.location=originalLocation;}
@@ -41,5 +41,5 @@ const flush=()=>new Promise(resolve=>setImmediate(resolve));
   const redirects=[],ui={};const sandbox={globalThis:{},location:{assign:p=>redirects.push(p)},document:{body:{dataset:{integrated:'true'}}},buttons(){},say(){},accountChrome(){},working:false,$:id=>ui[id]||(ui[id]={}),api:async url=>{assert.equal(url,'/api/session','Blocked account must not fetch scientific data');return {json:async()=>session};}};
   vm.runInNewContext(initSource+'\ninit();',sandbox);await flush();assert.deepEqual(redirects,[destination]);assert.equal(ui['login-panel'].hidden,true,'The legacy access-key panel must stay hidden');
  }
- console.log('PASS integrated frontend: full scientific navigation, real institution data, pending email, eight CSRF methods/uploads, expired-session redirect, three account gates, standalone compatibility');
+ console.log('PASS integrated frontend: full scientific navigation, real institution data, pending email, eight CSRF methods/uploads, expired-session retained-work recovery, three account gates, standalone compatibility');
 })().catch(error=>{console.error(error);process.exitCode=1;});

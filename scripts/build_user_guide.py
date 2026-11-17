@@ -55,7 +55,7 @@ def render(markdown):
             metadata = json.loads((ROOT / 'src/webapp/static/tutorial/manifest.json').read_text(encoding='utf8'))
             size = next(item['size'] for item in metadata['images'] if url.endswith('/' + item['file']))
             number = int(re.search(r'step-(\d+)', url).group(1))
-            blocks.append('<figure class="tutorial-shot"><a href="' + url + '" target="_blank" rel="noopener" aria-label="Ekran görüntüsünü büyüt: ' + html.escape(alt, quote=True) + ' (yeni sekmede açılır)"><img src="' + url + '" alt="' + html.escape(alt, quote=True) + '" width="' + str(size[0]) + '" height="' + str(size[1]) + '" loading="lazy" decoding="async"></a><figcaption>Görüntü ' + str(number) + ' · Büyütmek için dokunun · yapay örnek</figcaption></figure>')
+            blocks.append('<figure class="tutorial-shot"><a href="' + url + '" target="_blank" rel="noopener" aria-label="Enlarge screenshot: ' + html.escape(alt, quote=True) + ' (opens in a new tab)"><img src="' + url + '" alt="' + html.escape(alt, quote=True) + '" width="' + str(size[0]) + '" height="' + str(size[1]) + '" loading="lazy" decoding="async"></a><figcaption>Screenshot ' + str(number) + ' · Tap to enlarge · synthetic example</figcaption></figure>')
         elif line.startswith('- '):
             flush()
             if not listing:
@@ -71,8 +71,8 @@ def render(markdown):
     body = '\n'.join(blocks)
     return f'''<!doctype html>
 <!-- Generated from docs/USER_GUIDE.md by scripts/build_user_guide.py. -->
-<html lang="tr">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>User guide · Leaf Research</title><link rel="stylesheet" href="/science-static/user-guide.css"></head>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>User guide · Leaf Research</title><link rel="stylesheet" href="/science-static/research-ui.css"><link rel="stylesheet" href="/science-static/user-guide.css"></head>
 <body><a class="skip-link" href="#guide">Skip to guide</a>
 <header><a class="brand" href="/analyze">Leaf Research</a><span>User guide</span></header>
 <div class="layout"><nav aria-label="Guide contents"><a class="return-link" href="/analyze">Open Analyze a plant</a>{contents}</nav>
