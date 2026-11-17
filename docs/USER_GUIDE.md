@@ -64,7 +64,7 @@ Use **Paint** and **Erase** for leaf boundaries. Open **Leaf corrections** for *
 
 - **Select:** Tap a colored leaf to select it.
 - **Split:** Select a leaf, then draw a line through it to divide it.
-- **Merge:** Select leaves in **Individual leaf areas**, then press **Merge selected leaves**.
+- **Merge:** Press **Merge**, select two or more leaf checkboxes in **Individual leaf areas**, then press **Merge selected leaves**.
 - **Reassign:** Choose the correct leaf, then paint the area to transfer.
 - **Add leaf:** Paint a missing visible leaf. Release to create its assignment.
 - **Delete leaf:** Removes the assignment. Reassign the remaining tissue, or erase it if it is not leaf blade.
