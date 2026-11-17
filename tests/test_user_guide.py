@@ -40,9 +40,11 @@ def test_guide_is_linked_from_real_analyzer_and_navigation(application):
     assert 'href="/help"' in page.text and 'How to use' in page.text
     # Separate tab keeps an unfinished review in its existing browser tab.
     assert 'target="_blank" rel="noopener"' in page.text
-    for relative in ('src/webapp/static/app.js', 'src/auth_preview/static/app.js'):
-        source = (ROOT / relative).read_text(encoding='utf-8')
-        assert "['User guide','/help']" in source
+    # Analyze keeps one persistent header link; duplicating it in accountChrome
+    # made the mobile navigation confusing. The account app retains its own help.
+    assert page.text.count('href="/help"') == 1
+    source = (ROOT / 'src/auth_preview/static/app.js').read_text(encoding='utf-8')
+    assert "['User guide','/help']" in source
 
 
 def test_renderer_escapes_literal_markup():

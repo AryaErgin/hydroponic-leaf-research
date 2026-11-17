@@ -2,6 +2,8 @@
 
 Her görüntü gerçek uygulamanın 390 piksel genişliğindeki telefon görünümüdür. Görüntüye dokunarak büyütün. Örnekler yalnızca yapay bir bitki ve yerel deneme hesabıyla hazırlanmıştır; araştırma verisi değildir. Safari'nin Photo Library menüsü ve iCloud ekranı iOS'a göre değişir; burada uygulamanın kendi ekranları gösterilir.
 
+Analyze ekranındaki yedi adım gerçek duruma göre ilerler; analiz veya onay kendiliğinden başlamaz. Üstteki kısa yönlendirmeyi ve ana düğmeyi izleyin. **Hide tips / Show tips** ile isteğe bağlı ipuçlarını kapatıp açabilirsiniz; bitmiş adımlar düzenlenebilir kalır.
+
 ## 1. Sign in — giriş yapın
 
 Kendi e-posta adresinizi (1) ve şifrenizi (2) yazın; **Sign in** (3) düğmesine dokunun. İstenirse e-postanızı doğrulayın; kurum erişimi için yönetici onayı da gerekir.
@@ -46,33 +48,33 @@ Eğik, gizli veya kırpılmış saksı kenarıyla ölçek kurmayın; fotoğrafı
 
 ![Hazır fotoğraf ve işaretli Analyze photo düğmesinin gerçek telefon görünümü](../src/webapp/static/tutorial/step-08.webp)
 
-## 6. Renkli yaprakları kontrol edin
+## 6. Yaprakları kontrol edin ve düzeltin
 
-**Edit tools** (1) ile düzeltme araçlarını açın; **Paint lamina** ile eksik yaprak dokusunu ekleyin, **Erase tissue** ile sapı ve arka planı silin.
+**Colored leaves** (1) ve **Original photo** (2) ile fotoğrafı karşılaştırın. Görünen her yaprağın ayrı bir rengi olmalı; görünmeyen dokuyu boyamayın.
 
-![Telefon ekranında işaretli Edit tools düğmesi ve açık gerçek düzeltme araçları](../src/webapp/static/tutorial/step-09.webp)
+![Gerçek telefon ekranında Colored leaves ve Original photo düğmeleri ile renkli yaprak maskesi](../src/webapp/static/tutorial/step-09.webp)
 
-Fotoğrafı renkli yaprak maskesiyle (2) karşılaştırın; soluk ve sarı yaprak dokusunu koruyun, görünmeyen dokuyu boyamayın. Bittiğinde **Done** düğmesine dokunun.
+Gerekirse **Paint** veya **Erase** ile sınırı düzeltin; **Leaf corrections** altında **Split** (1), **Merge** (2) ve **Add leaf** (3) gibi yaprak düzeltmeleri bulunur. Etkin aracın kısa açıklamasını izleyin.
 
-![Gerçek SegFormer analizi sonrası fotoğraf üzerindeki renkli numaralı yaprak maskesinin telefon ekranı](../src/webapp/static/tutorial/step-10.webp)
+![Gerçek telefon ekranında Split Merge ve Add leaf araçlarının işaretli olduğu yaprak düzeltme grubu](../src/webapp/static/tutorial/step-10.webp)
 
-- **Split:** Bir bölgede iki yaprak varsa bölgeyi seçip tam kesen bir çizgi çizin.
+- **Split:** Bir yaprağı seçip ikiye ayıran bir çizgi çizin.
 - **Merge:** Aynı yaprağın parçalarını seçip **Merge selected leaves** ile birleştirin.
-- **Reassign:** Alıcı yaprağı seçip aktarılacak pikselleri boyayın.
-- **Add leaf:** Atlanan görünür yaprağı boyayarak yeni kimlik verin.
-- **Delete leaf:** Yaprak kimliğini kaldırır; kalan dokuyu yeniden atayın veya gerçekten yaprak değilse silin.
-- **Undo / Redo:** Düzeltmeyi geri alın veya yineleyin; iki parmakla fotoğrafı taşıyın ve yakınlaştırın.
-- **Save draft:** Onaylamadan ara kaydı saklar; geri döndüğünüzde aynı bitkiyi seçip **Resume unfinished review** düğmesine dokunun.
+- **Reassign:** Doğru yaprağı seçip aktarılacak alanı boyayın.
+- **Add leaf:** Eksik görünen yaprağı boyayarak yeni yaprak oluşturun.
+- **Delete leaf:** Kimliği kaldırır; kalan dokuyu yeniden atayın veya gerçekten yaprak değilse silin.
+- **Undo / Redo:** Düzeltmeyi geri alın veya yineleyin. İki parmakla fotoğrafı taşıyıp yakınlaştırın.
+- **Save draft:** Onaylamadan ara kaydı saklar. Geri döndüğünüzde aynı bitkiyi seçip **Resume unfinished review** kullanın.
 
 ## 7. Ölçümü onaylayın
 
-Yaprak sayısını, alanları ve ölçeği kontrol edip inceleme kutusunu (1) işaretleyin; **Approve measurement** (2) düğmesine dokunun. Düğme kapalıysa üzerindeki eksik-adım açıklamasını tamamlayın; insan onayı zorunludur.
+**Review measurement** ile tamamlama listesine geçin. Yaprak sayısını, alanları ve ölçeği kontrol edip inceleme kutusunu (1) işaretleyin; **Approve measurement** (2) düğmesine dokunun. Eksik bir madde varsa **Return to leaf editor**, **Review calibration** veya **Review confirmation** düğmesiyle düzeltin. İnsan onayı zorunludur; piksel olarak kaydedilen bir ölçüm cm² diye gösterilmez.
 
 ![Telefon ekranında işaretli inceleme onay kutusu ve etkin Approve measurement düğmesi](../src/webapp/static/tutorial/step-11.webp)
 
 ## 8. Büyüme geçmişi ve CSV
 
-Bitkinin onaylı **Growth history** bölümünde **Graph metric** (2) ile grafik ölçütünü seçin; **Export CSV** (1) ile geçmişi indirin. Aynı ölçüm hedefini ve tutarlı çekim koşullarını karşılaştırın.
+Onaydan sonra **View growth** ile geçmişe veya **Analyze another photo** ile yeni fotoğrafa geçin. Bitkinin **Growth history** bölümünde **Graph metric** (2) ile grafik ölçütünü seçin; **Export CSV** (1) ile geçmişi indirin. Aynı ölçüm hedefini ve tutarlı çekim koşullarını karşılaştırın.
 
 ![Gerçek telefon görünümünde Growth history başlığı, Export CSV düğmesi ve Graph metric listesi işaretli](../src/webapp/static/tutorial/step-12.webp)
 
@@ -90,3 +92,5 @@ Fotoğraf → otomatik yaprak önerisi → insan kontrolü → piksel sayımı �
 - **Oturum sona erdi:** Yeniden giriş yapın, aynı bitkiyi seçin ve kaydedilmiş incelemeyi açın; henüz sunucuya ulaşmamış bir fotoğrafı yeniden seçmeniz gerekebilir.
 - **Kalibrasyon eksik:** DIŞ çapı ve karşı DIŞ kenar noktalarını kontrol edin; yaprak incelemesi ile ölçek doğrulaması ayrı adımlardır.
 - **Onay kaydedilemedi:** Taslağı saklayın; tekrar onaylamadan önce geçmişte tamamlanmış ölçüm olup olmadığını kontrol edin.
+
+- **Aynı bitki ve tarihte kayıt var:** Önceki onaylı ölçüm değişmez. **Check photo date** ile fotoğrafın gerçek tarihini kontrol edin; tarih doğruysa geçmişteki mevcut kaydı inceleyin. Sadece onay alabilmek için tarihi değiştirmeyin.

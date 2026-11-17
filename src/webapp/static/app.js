@@ -1,3 +1,5 @@
+import {photoDiagnostic} from './image-diagnostics.js';
+import {workflowState} from './workflow-state.js';
 import {MaskEditor,leafColor} from './mask-editor.js';
 import {approvalState,median,graphSeries,calibrationIssue,reviewScale} from './review-state.js';
 import {PotCalibration} from './pot-calibration.js';
@@ -7,6 +9,7 @@ let profiles=[],selected=null,file=null,analysis=null,editor=null,working=false,
 let savingApproval=false,mergeSelections=new Set(),historyMeasurements=[];
 let selectionRevision=0,resumeId=null,setupDefault=null,potPicker=null,setupCalibration=null,setupTarget=null;
 let setupRequestId=null,setupSaving=false,calibrationSaving=false,photoSerial=0,calibrationSerial=0,pendingPhoto=null,imageProvenance=null,uploadRequestId=null,uploadedReview=null;
+let workflowPhase='',calibrationDeferred=false,calibrationSaved=false,reviewVisited=false,guidance=null,captureStep=null,approvalConflict='';
 const reviewKeys=['visible_target_only','visible_tissue_complete','moss_excluded','growing_medium_excluded','dead_tissue_excluded','pot_and_background_excluded','scale_approximation_accepted'];
 function say(text,error=false){$('status').textContent=error?userMessage(text):text;$('status').classList.toggle('error',error);if(error)$('debug-details').textContent=String(text);}
 async function api(url,options={}){
@@ -29,15 +32,15 @@ async function api(url,options={}){
   const response=await fetch(url,{...options,headers,credentials:'same-origin',signal:controller.signal});
   // Consume the network body inside the deadline; callers read only buffered JSON/blob data.
   const bytes=await response.arrayBuffer(),ready=new Response([204,205,304].includes(response.status)?null:bytes,{status:response.status,statusText:response.statusText,headers:response.headers});
-  if(!ready.ok){let data={};try{data=await ready.json();}catch{}if(ready.status===401&&url==='/api/images/prepare')throw Error('Your sign-in session expired. Open Sign in in another tab, then return here and try again; keep this page open to retain your photo.');if(ready.status===401&&session?.integrated)globalThis.location?.assign('/signin');throw Error(typeof data.detail==='string'?data.detail:Array.isArray(data.detail)?data.detail.map(d=>d.msg).join('; '):'Request failed: HTTP '+ready.status+' '+ready.statusText);}return ready;
+  if(!ready.ok){let data={};try{data=await ready.json();}catch{}if(ready.status===401&&url==='/api/images/prepare')throw Error('Your sign-in session expired. Open Sign in in another tab, then return here and try again; keep this page open to retain your photo.');if(ready.status===401&&session?.integrated)globalThis.location?.assign('/signin');const failed=Error(typeof data.detail==='string'?data.detail:Array.isArray(data.detail)?data.detail.map(d=>d.msg).join('; '):'Request failed: HTTP '+ready.status+' '+ready.statusText);failed.status=ready.status;if(typeof data.code==='string')failed.code=data.code;if(data.diagnostic&&typeof data.diagnostic==='object')failed.diagnostic=data.diagnostic;throw failed;}return ready;
  })()]);}catch(error){if(error.name==='AbortError')throw Error(message);throw error;}finally{clearTimeout(timeout);}
 }
 async function json(url,data,method='POST'){return (await api(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})).json();}
-function step(name){document.querySelectorAll('[data-step]').forEach(n=>n.classList.toggle('active',n.dataset.step===name));}
+function step(name){document.querySelectorAll('[data-step]').forEach(n=>n.classList.toggle('active',n.dataset.step===name));renderGuidance();}
 function currentApprovalState(){return approvalState({analysis,selected,stats:editor?.drawing?null:editor?.stats(),confirmed:$('review-confirm').checked,working,saving:savingApproval,drawing:editor?.drawing,geometryUnchanged:$('geometry').checked});}
 function buttons(){
  $('analyze').disabled=working||!selected||!file;
- const approval=currentApprovalState();$('approve').disabled=!approval.enabled;$('approval-reason').textContent=approval.reason;$('approve').textContent=savingApproval?'Saving…':'Approve measurement';
+ const approval=currentApprovalState();$('approve').disabled=!approval.enabled||Boolean(approvalConflict);$('approval-reason').textContent=approvalConflict?'Approval blocked: a measurement already exists for this date.':approval.reason;$('approve').textContent=savingApproval?'Saving…':'Approve measurement';
  $('save-draft').disabled=working||!analysis||analysis.status==='APPROVED'||editor?.drawing;
  if(editor)editor.busy=working||analysis?.status==='APPROVED';
  for(const id of ['plant','photo','geometry','edit','review-confirm','setup-open','calibration-open','manage-open'])$(id).disabled=working||Boolean(editor?.drawing);
@@ -45,10 +48,61 @@ function buttons(){
  $('photo-date').disabled=working||analysis?.status==='APPROVED'||Boolean(editor?.drawing);
  for(const id of ['leaf-select','leaf-pick','leaf-split','leaf-merge','leaf-reassign','leaf-delete','leaf-add','leaf-undo','leaf-redo','leaf-pan','paint','erase','undo','clear','tool-done'])$(id).disabled=working||analysis?.status==='APPROVED'||Boolean(editor?.drawing);
  if(!editor?.future?.length)$('leaf-redo').disabled=true;
+ renderGuidance();
  if(editor?.mode==='add')$('leaf-select').disabled=true;
  $('merge-confirm').disabled=working||editor?.mode!=='merge'||mergeSelections.size<2;
  $('confirm-photo-calibration').disabled=working||Boolean(editor?.drawing)||!$('confirm-photo-setup').checked;
 }
+function setPhase(value){workflowPhase=value;renderGuidance();}
+function showPhotoDiagnostic(error,source,stage,started){
+ if(!$('photo-diagnostic'))return;
+ const report=photoDiagnostic(error,source,stage,Date.now()-started,config.max_upload_bytes);
+ $('photo-diagnostic').hidden=false;if($('capture-details'))$('capture-details').open=true;$('photo-diagnostic-text').textContent=JSON.stringify(report,null,2);$('photo-diagnostic-code').textContent='Error code: '+report.code;
+}
+function tipsKey(){const u=globalThis.leafScienceSession?.user;return u?.id?'hydroponic.guidance.v1:'+u.id+':'+(u.org_id||'local'):null;}
+function syncTips(){let hidden=false;try{const key=tipsKey();hidden=key&&localStorage.getItem(key)==='hidden';}catch{}$('workspace').classList.toggle('tips-hidden',Boolean(hidden));if($('workflow-tips')){$('workflow-tips').textContent=hidden?'Show tips':'Hide tips';$('workflow-tips').setAttribute('aria-expanded',String(!hidden));$('workflow-tips').setAttribute('aria-pressed',String(!hidden));if(analysis&&editor?.labels&&!editor.drawing)renderLeafStats();}}
+function renderGuidance(){
+ if(!$('workflow-heading'))return;
+ const stats=analysis&&editor&&!editor.drawing?editor.stats():null;
+ guidance=workflowState({selected,file,analysis,stats,confirmed:$('review-confirm').checked,working,saving:savingApproval,drawing:editor?.drawing,geometryUnchanged:$('geometry').checked,calibrationOpen:!$('calibration-card').hidden,calibrationDeferred,calibrationSaved,reviewVisited,phase:workflowPhase,approvalConflict,resumeId,prepareFailed:!$('photo-retry').hidden});
+ $('workspace').dataset.guidedStep=guidance.step;
+ $('workflow-heading').textContent='Step '+guidance.index+' of 7 - '+guidance.title;
+ $('workflow-hint').textContent=guidance.instruction;
+ const next=$('workflow-action');next.textContent=guidance.label;next.disabled=guidance.action==='wait';
+ if(guidance.step==='plant')next.textContent=profiles.length?'Choose plant':'Add plant';
+ if(guidance.step==='calibration'&&!$('calibration-card').hidden){next.textContent=!potPicker?.image?'Retry scale preview':$('pot-save').disabled?'Mark pot edges':'Save calibration';$('workflow-hint').textContent=!potPicker?.image?'Your photo is ready. Retry the scale preview, or review leaves in pixels first.':!(Number($('pot-diameter').value)>0)?'Enter the measured pot outer diameter in cm.':!potPicker?.points.length?'Tap the first point on the outer pot rim.':potPicker.points.length===1?'Tap the opposite outer-rim point.':'Check both rim points, then save calibration.';}
+ for(const n of document.querySelectorAll('[data-workflow-step]')){const w=guidance.steps.find(x=>x.key===n.dataset.workflowStep);n.classList.toggle('current',w.current);n.classList.toggle('complete',w.complete);n.classList.toggle('optional',w.optional);if(w.current)n.setAttribute('aria-current','step');else n.removeAttribute('aria-current');n.disabled=working||Boolean(editor?.drawing)||!w.available;n.setAttribute('aria-label',w.label+(w.current?', current step':w.complete?', complete':w.optional?', optional / checked per photo':''));}
+ const phases={preparing:'Preparing image...',uploading:'Uploading prepared image...',analyzing:'Analyzing leaves. The service may need to start; the first run can take several minutes.', 'review-loading':'Preparing the colored leaf review...'};
+ $('analysis-phase').textContent=phases[workflowPhase]||'';$('analysis-phase').hidden=!phases[workflowPhase];
+ for(const id of ['another-photo','view-growth','review-continue','view-original','view-overlay'])$(id).disabled=working||Boolean(editor?.drawing);
+ const capture=$('capture-details');if(capture&&captureStep!==guidance.step){capture.open=['plant','photo'].includes(guidance.step);captureStep=guidance.step;}
+ $('approval-checklist').replaceChildren();for(const item of guidance.checks){const li=document.createElement('li');li.textContent=(item.complete?'Done: ':item.optional?'Optional: ':'Missing: ')+item.label;li.className=item.complete?'complete':item.optional?'optional':'incomplete';$('approval-checklist').append(li);}
+ $('photo-date-help').hidden=!approvalConflict;$('photo-date-help').textContent=approvalConflict;
+ $('approve-blocker').hidden=guidance.approval.enabled||analysis?.status==='APPROVED';
+ const brief=working?(savingApproval?'Saving measurement...':'Please wait for the current action.'):{date:'A measurement is already saved for this date.',confirm:'Confirm that you checked the leaves.',scale:'Check this photo scale before saving.',editor:stats?.unassigned?'Some leaf pixels need an assignment.':'Check the leaf assignments before saving.'}[guidance.action];
+ if(brief)$('approval-reason').textContent=brief;
+ const fix=$('approval-fix');fix.hidden=guidance.approval.enabled||analysis?.status==='APPROVED';fix.disabled=working||Boolean(editor?.drawing);fix.textContent={date:'Check photo date',editor:'Return to leaf editor',scale:'Review calibration',confirm:'Review confirmation'}[guidance.action]||'Review missing items';
+ const targets={plant:'plant',photo:'dropzone',retry:'photo-retry',calibrate:'pot-canvas',analyze:'analyze',review:'editor-viewport',editor:'editor-viewport',scale:'photo-calibration',confirm:'review-confirm',date:'photo-date',approve:'approve',growth:'history-card'};
+ for(const n of document.querySelectorAll('.guidance-target'))n.classList.remove('guidance-target');let target=$(targets[guidance.action]);if(guidance.step==='calibration')target=$(!potPicker?.image?'pot-preview-retry':!(Number($('pot-diameter').value)>0)?'pot-diameter':$('pot-save').disabled?'pot-canvas':'pot-save');if(target)target.classList.add('guidance-target');
+}
+function focusStep(id){const n=$(id);if(!n)return;if(n.closest?.('#capture-details'))$('capture-details').open=true;n.scrollIntoView({behavior:'smooth',block:'center'});if(n.matches?.('button,input,select,[tabindex]'))n.focus({preventScroll:true});}
+async function workflowAction(action=guidance?.action){
+ if(working||editor?.drawing)return;
+ if(action==='plant'){if(!profiles.length)return openSetup('new');return focusStep('plant');}
+ if(action==='photo')return $('photo').click();
+ if(action==='retry')return chooseFile(pendingPhoto);
+ if(action==='resume')return $('resume').click();
+ if(action==='calibrate'){if($('calibration-card').hidden||!potPicker?.image)await startCalibration();else if(!$('pot-save').disabled)return savePot();focusStep(Number($('pot-diameter').value)>0?'pot-canvas':'pot-diameter');return;}
+ if(action==='analyze')return analyze();
+ if(action==='review'){reviewVisited=true;renderGuidance();focusStep('approval-guidance');return;}
+ if(action==='editor'){if($('tool-drawer').hidden)toggleEditor();leafMode('select');if(editor?.stats().unassigned)$('tool-message').textContent='Some leaf pixels are unassigned. Use Reassign to an existing leaf, Add leaf for a missing leaf, or Erase confirmed non-leaf tissue.';focusStep('editor-viewport');return;}
+ if(action==='scale'){await startCalibration();focusStep('calibration-card');return;}
+ if(action==='confirm'){focusStep('review-confirm');return;}
+ if(action==='date'){focusStep('photo-date');return;}
+ if(action==='approve')return approve();
+ if(action==='growth')return focusStep('history-card');
+}
+function viewPhoto(original){if(!editor||editor.drawing)return;if(original)leafMode('pan');$('show-mask').checked=!original;editor.show(!original);editor.editable=!original&&!working&&analysis?.status!=='APPROVED';$('view-original').setAttribute('aria-pressed',String(original));$('view-overlay').setAttribute('aria-pressed',String(!original));$('tool-message').textContent=original?'Original photograph. Switch to colored leaves before correcting.':'Colored leaf overlay. Check each leaf and correct mistakes.';}
 function cameraKey(profile){return 'hydroponic.camera-changed:'+profile.id+':'+profile.calibration.id;}
 function cameraActive(profile){if(!profile?.calibration)return false;try{return localStorage.getItem(cameraKey(profile))!=='true';}catch{return false;}}
 function calibrationStatus(){
@@ -88,32 +142,36 @@ async function confirmPhotoCalibration(){
  finally{working=false;buttons();}
 }
 async function updateCaptureDate(){
- if(!analysis){uploadedReview=null;uploadRequestId=crypto.randomUUID();return;}
- if(analysis.status==='APPROVED'||$('photo-date').value===analysis.date)return;
- const date=$('photo-date').value,prior=analysis,mask=editor.payload();uploadedReview=null;uploadRequestId=crypto.randomUUID();
+ const previousConflict=approvalConflict;
+ if(!analysis){approvalConflict='';uploadedReview=null;uploadRequestId=crypto.randomUUID();buttons();return;}
+ if(working||editor?.drawing||analysis.status==='APPROVED')return;
+ const date=$('photo-date').value,prior=analysis,revision=selectionRevision;
+ if(date===prior.date)return;
  if(!date){$('photo-date').value=prior.date;return;}
- working=true;buttons();say('Updating measurement date...');
+ working=true;buttons();say('Updating the photo date...');
  try{
-  const original=await api(prior.assets.original),bytes=await original.blob();
-  const form=new FormData();form.append('profile_id',prior.profile_id);form.append('date',date);form.append('geometry_unchanged',String(prior.geometry_unchanged));form.append('image',new File([bytes],prior.original_filename,{type:bytes.type}));
-  const upload=await(await api('/api/uploads',{method:'POST',body:form})).json();
-  await json('/api/analyses/'+upload.id+'/analyze',{});
-  await showAnalysis(await json('/api/analyses/'+upload.id+'/draft',{...mask,...(mask.instance_base64?{instance_analysis_id:upload.id}:{})}));
-  await pending();say('Date updated. Corrections preserved; confirm review again before approval.');
- }catch(error){analysis=prior;$('photo-date').value=prior.date;say(error.message,true);}
+  const saved=await json('/api/analyses/'+prior.id+'/capture-date',{date,expected_date:prior.date});
+  if(analysis?.id!==prior.id||selectionRevision!==revision)throw Error('Date saved. Return to this plant to review it.');
+  // Keep the exact local pixels, leaf identities, undo/redo and calibration.
+  // Only an unapproved date is editable; confirmation is explicitly renewed.
+  analysis={...analysis,date:saved.date,capture_date_edits:saved.capture_date_edits};
+  if(uploadedReview?.id===prior.id)uploadedReview={...uploadedReview,date:saved.date};
+  uploadRequestId=crypto.randomUUID();approvalConflict='';$('review-confirm').checked=false;$('approval-error').textContent='';
+  say('Photo date updated. Your leaf corrections are unchanged. Confirm the review again before approval.');
+ }catch(error){analysis=prior;approvalConflict=previousConflict;$('photo-date').value=prior.date;say(error.message,true);}
  finally{working=false;buttons();}
 }
-function resetReview(){$('approval-error').textContent='';dirty=true;$('review-confirm').checked=false;if(editor?.labels)renderLeafStats();buttons();}
+function resetReview(){$('approval-error').textContent='';dirty=true;$('review-confirm').checked=false;if(editor?.labels){renderLeafStats();const changed=editor.stats();$('tool-message').textContent='Edit applied. '+(changed.unassigned?changed.unassigned.toLocaleString()+' leaf pixels need assignment.':'Leaf counts and areas updated; review the boundaries.');}buttons();}
 function plantName(p){return p.species==='lettuce'?'lettuce':'Rumex acetosa';}
 async function refreshProfiles(selectId){
  profiles=await (await api('/api/profiles')).json();$('plant').replaceChildren(new Option('Choose a plant',''));
  for(const p of profiles)$('plant').add(new Option(p.display_name||p.plant_id,p.id));
- if(selectId)$('plant').value=selectId;
+ if(selectId&&profiles.some(p=>p.id===selectId))$('plant').value=selectId;
  if(!selectId&&profiles.length===1)$('plant').value=profiles[0].id;
  await selectPlant();
 }
 async function selectPlant(){
- const revision=++selectionRevision;
+ approvalConflict='';const revision=++selectionRevision;calibrationDeferred=false;calibrationSaved=false;reviewVisited=false;workflowPhase='';
  selected=profiles.find(p=>p.id===$('plant').value)||null;analysis=null;dirty=false;$('review-card').hidden=true;$('result-card').hidden=true;
  const profileId=selected?.id;$('resume-row').hidden=true;resumeId=null;
  $('calibration-card').hidden=true;uploadedReview=null;uploadRequestId=null;pendingPhoto=null;imageProvenance=null;++photoSerial;
@@ -127,14 +185,14 @@ async function pending(profileId=selected?.id,revision=selectionRevision){
  const rows=await(await api('/api/profiles/'+profileId+'/analyses'+(analysis?.profile_id===profileId?'?active_id='+encodeURIComponent(analysis.id):''))).json();
  if(selected?.id!==profileId||revision!==selectionRevision)return;
  resumeId=null;
- resumeId=rows[0]?.id||null;$('resume-row').hidden=!resumeId;
+ resumeId=rows[0]?.id||null;$('resume-row').hidden=!resumeId;renderGuidance();
 }
 async function chooseFile(chosen){
- if(!chosen)return;
+ if(!chosen)return;const photoStarted=Date.now();$('photo-diagnostic').hidden=true;approvalConflict='';calibrationDeferred=false;calibrationSaved=false;reviewVisited=false;
  const serial=++photoSerial,profileId=selected?.id;pendingPhoto=chosen;file=null;uploadedReview=null;uploadRequestId=null;imageProvenance=null;analysis=null;dirty=false;$('review-card').hidden=true;$('result-card').hidden=true;
  $('calibration-card').hidden=true;
- if(chosen.size>config.max_upload_bytes){const message='This image exceeds the '+Math.round(config.max_upload_bytes/1048576)+' MB limit. Export a smaller JPEG or choose another photo; your plant and calibration are saved.';$('photo-progress').textContent=message;$('photo-retry').hidden=true;say(message,true);buttons();return;}
- working=true;buttons();$('photo-progress').textContent='Preparing your photo…';$('photo-retry').hidden=true;
+ if(chosen.size>config.max_upload_bytes){const message='This image exceeds the '+Math.round(config.max_upload_bytes/1048576)+' MB limit. Export a smaller JPEG or choose another photo; your plant and calibration are saved.';showPhotoDiagnostic({code:'image.input_too_large'},chosen,'prepare',photoStarted);$('photo-progress').textContent=message;$('photo-retry').hidden=true;say(message,true);buttons();return;}
+ working=true;setPhase('preparing');buttons();$('photo-progress').textContent='Preparing your photo…';$('photo-retry').hidden=true;
  try{
   const form=new FormData();form.append('image',chosen);
   const response=await api('/api/images/prepare',{method:'POST',body:form}),blob=await response.blob();
@@ -147,32 +205,32 @@ async function chooseFile(chosen){
   const frame=imageProvenance;
   if(frame?.resized)$('photo-progress').textContent+=' Full frame resized from '+frame.oriented_size_px.join(' x ')+' to '+frame.normalized_size_px.join(' x ')+' pixels; no crop. Review boundaries and set scale on this prepared photo.';
   if(selected&&!selected.calibration){
-   try{await startCalibration();}catch(error){if(serial!==photoSerial)return;potPicker?.clear?.();$('calibration-card').hidden=false;$('pot-error').textContent='Photo ready; the scale preview could not open. Tap Recalibrate to retry, or Later then Analyze photo for a pixels-only leaf review.';say('Photo ready. Calibration can be completed separately.');}
+   try{await startCalibration();}catch(error){if(serial!==photoSerial)return;potPicker?.clear?.();showPhotoDiagnostic({code:'calibration_preview.decode_failed',message:error.message},file,'calibration_preview',photoStarted);$('calibration-card').hidden=false;$('debug-details').textContent='Calibration preview: '+error.name+': '+error.message;$('pot-error').textContent='Photo ready; the scale preview could not open. Tap Recalibrate to retry, or Later then Analyze photo for a pixels-only leaf review.';say('Photo ready. Calibration can be completed separately.');}
   }else say('Photo ready. Tap Analyze photo.');
- }catch(error){if(serial===photoSerial){$('photo-progress').textContent=userMessage(error.message)+' Your photo is still selected. Try again, or choose another photo.';$('photo-retry').hidden=false;say(error.message,true);}}
- finally{if(serial===photoSerial){working=false;buttons();}}
+ }catch(error){if(serial===photoSerial){showPhotoDiagnostic(error,chosen,'prepare',photoStarted);$('photo-progress').textContent=userMessage(error.message)+' Your photo is still selected. Try again, or choose another photo.';$('photo-retry').hidden=false;say(error.message,true);}}
+ finally{if(serial===photoSerial){working=false;setPhase('');buttons();}}
 }
 async function analyze(){
- if(working||!selected||!file)return;if(!confirmDiscard())return;
+ if(working||!selected||!file)return;if(!confirmDiscard())return;const analysisStarted=Date.now();$('photo-diagnostic').hidden=true;
  if(uploadedReview&&(uploadedReview.profile_id!==selected.id||uploadedReview.date!==$('photo-date').value||uploadedReview.geometry_unchanged!==$('geometry').checked)){uploadedReview=null;uploadRequestId=crypto.randomUUID();}
- working=true;buttons();step('analyze');say('Analyzing your photo…');$('photo-progress').textContent='Finding visible leaves. The first analysis may take a few minutes.';
+ working=true;setPhase('uploading');buttons();step('analyze');say('Analyzing your photo…');$('photo-progress').textContent='Finding visible leaves. The first analysis may take a few minutes.';
  try{
   if(!uploadedReview){const form=new FormData();form.append('profile_id',selected.id);form.append('date',$('photo-date').value);form.append('geometry_unchanged',String($('geometry').checked));form.append('image',file);if(imageProvenance)form.append('image_provenance',JSON.stringify(imageProvenance));form.append('request_id',uploadRequestId||=crypto.randomUUID());
    uploadedReview=await(await api('/api/uploads',{method:'POST',body:form})).json();}
-  const data=await json('/api/analyses/'+uploadedReview.id+'/analyze',{});await showAnalysis(data);await pending();$('photo-progress').textContent='Analysis ready for your review.';say('Review the colored leaf blades. Correct any mistakes, then approve.');
- }catch(error){$('photo-progress').textContent='Analysis did not finish. Your photo is still here. Tap Analyze photo to retry.';say(error.message,true);}finally{working=false;buttons();}
+  setPhase('analyzing');const data=await json('/api/analyses/'+uploadedReview.id+'/analyze',{});setPhase('review-loading');await showAnalysis(data);await pending();$('photo-progress').textContent='Analysis ready for your review.';say('Review the colored leaf blades. Correct any mistakes, then approve.');
+ }catch(error){showPhotoDiagnostic(error,file,workflowPhase==='uploading'?'upload':'analysis',analysisStarted);$('photo-progress').textContent='Analysis did not finish. Your photo is still here. Tap Analyze photo to retry.';say(error.message,true);}finally{working=false;setPhase('');buttons();}
 }
 async function showAnalysis(data){
  if(!selected||data.profile_id!==selected.id)throw Error('This review belongs to another plant. Select its plant before reviewing.');
  if(!data.mask_base64||!data.pipeline)throw Error('Analysis is not ready. Resume it to retry; interrupted work becomes retryable after 5 minutes.');
- analysis=data;dirty=false;mergeSelections.clear();$('approval-error').textContent='';$('tool-message').textContent='';$('photo-date').value=data.date;$('review-card').hidden=false;$('review-confirm').checked=false;
+ analysis=data;dirty=false;reviewVisited=false;mergeSelections.clear();$('approval-error').textContent='';$('tool-message').textContent='';$('photo-date').value=data.date;$('review-card').hidden=false;$('review-confirm').checked=false;
  $('confirm-photo-setup').checked=false;$('photo-calibration-error').textContent='';
  $('review-card').classList.remove('editing');$('editor-tools').hidden=true;$('edit').textContent='Edit lamina mask';$('leaf-tools').open=true;$('tool-drawer').hidden=true;$('zoom').value='fit';$('show-mask').checked=true;
  $('original').src=data.assets.original;$('candidate').src=data.assets.candidate_mask;$('backdrop').src=data.assets.original;
  if(!editor)editor=new MaskEditor($('stage'),$('mask'),$('cursor'),resetReview,splitLeaf,(state={})=>{if(!editor.drawing){if(!state.rendered)editor.render();renderLeafStats();}renderToolState();buttons();},message=>{$('tool-message').textContent=message;});
  editor.editable=true;editor.visible=true;editor.show(true);editor.load(...data.image_size_px,data.mask_base64);
  if(data.instance_base64)editor.loadInstances(data.instance_base64,data.id,data.instance_metadata);
- editor.mode='select';renderLeafStats();renderToolState();calibrationStatus();
+ editor.mode='select';$('view-original').setAttribute('aria-pressed','false');$('view-overlay').setAttribute('aria-pressed','true');renderLeafStats();renderToolState();calibrationStatus();
  $('review-badge').textContent=data.status==='DRAFT'?'EDITED DRAFT · HUMAN APPROVAL REQUIRED':data.species==='rumex_acetosa'?'UNVALIDATED / REVIEW REQUIRED':'AUTOMATIC PREDICTION · UNVALIDATED / REVIEW REQUIRED';
  $('candidate-panel').querySelector('h3').textContent=data.automatic_mask_available?'Automatic candidate mask':'Manual mask · no automatic thresholds';
  
@@ -184,7 +242,7 @@ async function showAnalysis(data){
 
  $('review-checklist').textContent=$('review-statement').textContent;
  $('review-statement').textContent='I checked the visible leaf blades, their boundaries, excluded tissue and '+(reviewScale(data,$('geometry').checked)===null?'pixel-only units.':'the approximate photo scale.');
- $('edit').textContent='Edit tools';
+ $('edit').textContent='Leaf corrections';
  $('calibration-card').hidden=true;
  $('overlay-title').textContent='Visible leaf-blade instances · one color per leaf';buttons();step('review');$('review-card').scrollIntoView({behavior:'smooth',block:'start'});
  if(!data.automatic_mask_available)toggleEditor();
@@ -212,7 +270,7 @@ async function approve(){
   try{await history(profileId,revision);await pending(profileId,revision);say('Measurement approved and saved. Growth history and export updated.');}
   catch(error){say('Measurement approved and saved. History refresh failed: '+error.message+'. Refresh the page to load it.',true);}
   $('result-card').scrollIntoView({behavior:'smooth'});
- }catch(error){$('approval-error').textContent=userMessage(error);say(error.message,true);}
+ }catch(error){$('approval-error').textContent='Measurement not saved. '+userMessage(error);if(/final measurement already exists|measurement.*already.*plant.*date/i.test(error.message))approvalConflict='A measurement is already saved for this plant and date. Check the actual photo date; this review has not been saved.';say(approvalConflict||error.message,true);}
  finally{working=false;savingApproval=false;buttons();}
 }
 function renderLeafStats(){
@@ -222,6 +280,7 @@ function renderLeafStats(){
  $('leaf-mean').textContent=area(s.ids.length&&!s.unassigned?s.total/s.ids.length:null);$('leaf-median').textContent=area(s.unassigned?null:median(s.areas));
  $('leaf-note').textContent=s.unassigned?s.unassigned.toLocaleString()+' lamina pixels are unassigned. Add creates a new leaf from painted lamina; Reassign transfers pixels to an existing leaf.':(scale===null?'Scale not verified: pixel areas only. ':'Approximate projected areas at the reference plane. ')+'Lamina only: inspect petiole, stem and crown exclusions; keep pale/yellow and uncertain lamina.';
  if(calibrationIssue(analysis,$('geometry').checked))$('leaf-note').textContent+=' '+calibrationIssue(analysis,$('geometry').checked)+' Preview uses pixels only.';
+ if($('workspace').classList.contains('tips-hidden'))$('leaf-note').textContent=s.unassigned?s.unassigned.toLocaleString()+' unassigned leaf pixels. Use Add / Reassign, or erase confirmed non-leaf tissue.':scale===null?'Pixel units only; physical scale is not verified.':'Approximate projected leaf area at the pot-rim plane.';
  if(analysis?.status!=='APPROVED')$('review-statement').textContent='I checked the visible '+(analysis?.measurement_target==='visible_leaf_lamina'?'leaf blades':'plant tissue')+', their boundaries, excluded tissue and '+(scale===null?'pixel-only units.':'the approximate photo scale.');
  $('leaf-rows').replaceChildren();$('leaf-select').replaceChildren();const merging=editor.mode==='merge';$('merge-column').hidden=!merging;
  if(editor.mode!=='add'&&!s.ids.includes(editor.selectedLeaf))editor.selectedLeaf=s.ids[0]||1;
@@ -240,11 +299,12 @@ function renderToolState(){
  const map={'leaf-pick':'select','leaf-split':'split','leaf-reassign':'reassign','leaf-add':'add','leaf-merge':'merge','leaf-pan':'pan',paint:'paint',erase:'erase'};
  for(const[id,value]of Object.entries(map)){$(id).classList.toggle('selected',mode===value);$(id).setAttribute('aria-pressed',String(mode===value));}
  $('merge-confirm').hidden=mode!=='merge';$('editor-tools').hidden=['select','merge','pan'].includes(mode);if(mode==='merge')$('leaf-details').open=true;
- $('leaf-mode-note').textContent={pan:'Move the photo with one finger. Pinch with two fingers to zoom.',select:'Tap a colored leaf to select it. Open Edit tools to correct boundaries.',split:'Draw one complete cut across only the selected leaf. Failed cuts explain why.',merge:'Select 2 or more leaves to merge, then confirm.',reassign:'Transfer painted lamina pixels to the selected leaf.',add:'Paint the visible leaf blade, including areas the mask missed. Magenta previews the exact new leaf region. Release to add it to the lamina mask and create the leaf; Escape cancels.',paint:'Paint adds visible lamina to the total mask.',erase:'Erase removes tissue from lamina area and all leaf assignments.'}[mode];
+ $('leaf-mode-note').textContent={pan:'Move the photo with one finger. Pinch with two fingers to zoom.',select:'Tap a colored leaf to select it. Use Paint / Erase for boundaries, or Leaf corrections for identities.',split:'Select one leaf, then draw a complete line across it to divide it. Failed cuts explain why.',merge:'Select two or more leaf checkboxes in Individual leaf areas, then Merge selected leaves.',reassign:'Choose the correct leaf in Selected leaf, then paint the area to transfer.',add:'Paint the missing visible leaf blade. Magenta previews the new leaf region; release to create it. Escape cancels.',paint:'Paint adds visible blade tissue. Assign new pixels with Add leaf or Reassign before approval.',erase:'Erase removes tissue from lamina area and all leaf assignments.'}[mode];
  if(editor)editor.canvas.style.cursor=['select','merge'].includes(mode)?'pointer':'crosshair';
 }
 function leafMode(mode){
  if(!editor||working||analysis?.status==='APPROVED'||editor.drawing)return;
+ $('show-mask').checked=true;editor.show(true);$('view-original').setAttribute('aria-pressed','false');$('view-overlay').setAttribute('aria-pressed','true');
  if(editor.mode==='merge'&&mode!=='merge')mergeSelections.clear();
  editor.mode=mode;editor.editable=true;$('tool-message').textContent='';editor.render();renderLeafStats();renderToolState();buttons();
 }
@@ -290,18 +350,18 @@ function potChanged(){
  $('pot-canvas').hidden=!potPicker?.image;
  $('pot-step').textContent=!potPicker?.points.length?'1 · Tap the first outer edge':potPicker.points.length===1?'2 · Tap the opposite outer edge':'3 · Save calibration';
  $('pot-summary').textContent=d===null?'Your photo stays here while you mark the rim.':d<1?'Choose two different points on opposite sides.':cm>0?'Diameter '+d.toFixed(1)+' px · approximate scale '+(cm/d).toFixed(6)+' cm per pixel':'Enter the physical outer pot diameter above.';
- potButtons();
+ potButtons();$('pot-preview-retry').hidden=Boolean(potPicker?.image);$('pot-action-hint').textContent=!potPicker?.image?'The photo is ready. Retry the scale preview or review in pixels first.':$('pot-save').disabled?'Mark the two opposite outer-rim points to set the image scale.':'Both rim points are marked. Save calibration for an approximate cm\u00b2 estimate.';renderGuidance();
 }
 function potButtons(){const d=potPicker?.distance(),cm=Number($('pot-diameter').value);$('pot-save').disabled=calibrationSaving||!(d>=1&&Number.isFinite(cm)&&cm>0&&cm<=1000);$('pot-undo').disabled=calibrationSaving||!potPicker?.points.length;$('pot-redo').disabled=calibrationSaving;}
 async function openSetup(mode){
- if(working)return;if(mode==='calibration')return startCalibration();
+ if(working)return;if(mode==='new'&&analysis&&dirty&&!confirmDiscard())return;if(mode==='calibration')return startCalibration();
  setupMode=mode;setupTarget=mode==='new'?null:selected;setupCalibration=null;setupRequestId=crypto.randomUUID();$('setup-error').textContent='';
  $('plant-id').value=mode==='new'?'':setupTarget.display_name||setupTarget.plant_id;$('species').value=mode==='new'?'lettuce':setupTarget.species;
  $('identity-fields').hidden=false;$('plant-id').disabled=false;$('species').disabled=false;
  $('setup-title').textContent=mode==='edit'?'Manage plant':'Add plant';$('setup-save').hidden=false;$('setup-save').textContent=mode==='new'?'Add plant':'Save plant';$('setup-dialog').showModal();
 }
 async function startCalibration(){
- if(!selected)return;const calibrationTarget=selected,revision=selectionRevision,sourceSerial=photoSerial,openSerial=++calibrationSerial,reviewId=analysis?.id;
+ if(!selected)return;calibrationDeferred=false;const calibrationTarget=selected,revision=selectionRevision,sourceSerial=photoSerial,openSerial=++calibrationSerial,reviewId=analysis?.id;
  const stillCurrent=()=>selected?.id===calibrationTarget.id&&selectionRevision===revision&&photoSerial===sourceSerial&&calibrationSerial===openSerial&&analysis?.id===reviewId;
  setupTarget=selected;setupMode='calibration';$('pot-error').textContent='';
  if(!potPicker)potPicker=new PotCalibration($('pot-canvas'),potChanged,$('pot-viewport'));
@@ -316,7 +376,7 @@ async function startCalibration(){
  $('calibration-title').textContent='Set scale · '+(selected.display_name||selected.plant_id);$('calibration-card').hidden=false;$('pot-photo-label').hidden=Boolean(image);
  if(image&&potPicker.file!==image)await potPicker.load(image);
  if(!stillCurrent())return;
- potChanged();$('calibration-card').scrollIntoView({behavior:'smooth',block:'start'});requestAnimationFrame(()=>potPicker.fit());
+ potChanged();renderGuidance();$('calibration-card').scrollIntoView({behavior:'smooth',block:'start'});requestAnimationFrame(()=>potPicker.fit());
 }
 async function savePot(){
  if(calibrationSaving||potPicker?.pointDraft||$('pot-save').disabled||!setupTarget||!potPicker?.file)return;
@@ -336,7 +396,7 @@ async function savePot(){
   try{localStorage.removeItem(cameraKey(selected));}catch{}
   if(saved.analysis&&uploadedReview?.id===saved.analysis.id)uploadedReview=saved.analysis;
   if(activeReview&&analysis?.id===activeReview.id){const review=saved.analysis;analysis={...analysis,calibration:review.calibration,geometry_unchanged:true,calibration_reuse:review.calibration_reuse,effective_cm_per_pixel:review.effective_cm_per_pixel,calibration_valid:review.calibration_valid,calibration_issue:review.calibration_issue,calibration_reference_url:review.calibration_reference_url,calibration_revision:review.calibration_revision};$('review-confirm').checked=false;renderLeafStats();}
-  $('geometry').checked=true;$('calibration-card').hidden=true;calibrationStatus();say('Calibration saved for '+(selected.display_name||selected.plant_id)+'. '+(activeReview?'Your leaf edits are unchanged.':'Tap Analyze photo to continue.'));
+  $('geometry').checked=true;calibrationSaved=true;calibrationDeferred=false;$('calibration-card').hidden=true;calibrationStatus();say('Calibration saved for '+(selected.display_name||selected.plant_id)+'. '+(activeReview?'Your leaf edits are unchanged.':'Tap Analyze photo to continue.'));
  }catch(error){$('pot-error').textContent=userMessage(error,'calibration');$('debug-details').textContent=String(error.message);$('pot-save').textContent='Retry save';}
  finally{calibrationSaving=false;potPicker.locked=false;working=false;if(!$('pot-error').textContent)$('pot-save').textContent='Save calibration';potButtons();buttons();}
 }
@@ -344,20 +404,35 @@ async function saveSetup(event){
  event.preventDefault();if(setupSaving)return;setupSaving=true;$('setup-save').disabled=true;$('setup-save').textContent='Saving...';$('setup-error').textContent='';
  try{
   const retainedPhoto=setupMode==='new'&&!analysis?pendingPhoto:null;
+  const retainedPrepared=retainedPhoto&&file&&imageProvenance?.normalized_sha256?{file,provenance:imageProvenance}:null;
   const identity={name:$('plant-id').value.trim(),species:$('species').value};
+  const speciesChanged=setupMode==='edit'&&setupTarget?.species!==identity.species;
+  if(speciesChanged&&analysis&&!window.confirm('Changing species requires fresh analysis. Keep the photo and discard this unsaved leaf review?'))return;
+  let retainedReviewPhoto=null;
+  if(speciesChanged&&analysis&&!file){const response=await api(analysis.assets.original),blob=await response.blob();retainedReviewPhoto=new File([blob],analysis.original_filename,{type:blob.type});}
+
   const saved=setupMode==='edit'?await json('/api/plants/'+setupTarget.id,identity,'PUT'):await json('/api/plants',{...identity,calibration_choice:'none',request_id:setupRequestId});
-  $('setup-dialog').close();await refreshProfiles(saved.id);say('Plant saved. Take or choose its first photo.');
-  if(retainedPhoto)await chooseFile(retainedPhoto);
+  $('setup-dialog').close();
+  if(setupMode==='edit'){
+   profiles=profiles.map(p=>p.id===saved.id?saved:p);
+   if(selected?.id===saved.id){
+    if(speciesChanged){file=file||retainedReviewPhoto;pendingPhoto=pendingPhoto||file;analysis=null;dirty=false;uploadedReview=null;uploadRequestId=crypto.randomUUID();reviewVisited=false;calibrationSaved=false;calibrationDeferred=true;$('review-confirm').checked=false;$('review-card').hidden=true;$('result-card').hidden=true;$('calibration-card').hidden=true;$('photo-progress').textContent='Photo retained. Analyze again for the new species; the previous leaf mask cannot be reused.';}
+    selected=saved;setupTarget=saved;const option=[...$('plant').options].find(o=>o.value===saved.id);if(option)option.textContent=saved.display_name||saved.plant_id;$('species-label').textContent=plantName(saved);calibrationStatus();buttons();say(speciesChanged?'Species changed. Your photo is retained; fresh analysis is required.':'Plant details saved. Your photo and leaf review are unchanged.');}
+   return;
+  }
+  await refreshProfiles(saved.id);say('Plant saved. Take or choose its first photo.');
+  if(retainedPrepared){file=retainedPrepared.file;imageProvenance=retainedPrepared.provenance;pendingPhoto=retainedPhoto;uploadRequestId=crypto.randomUUID();$('file-label').textContent='Selected photo retained - ready to analyze';$('photo-progress').textContent='Ready to analyze. Your selected photo was kept while adding the plant.';await startCalibration();buttons();}else if(retainedPhoto)await chooseFile(retainedPhoto);
  }catch(error){$('setup-error').textContent=userMessage(error);$('debug-details').textContent=String(error.message);}finally{setupSaving=false;$('setup-save').disabled=false;$('setup-save').textContent=setupMode==='new'?'Add plant':'Save plant';}
 }
 $('setup-open').onclick=()=>openSetup('new').catch(e=>say(e.message,true));$('manage-open').onclick=()=>openSetup('edit').catch(e=>say(e.message,true));$('calibration-open').onclick=()=>startCalibration().catch(e=>say(e.message,true));$('review-recalibrate').onclick=$('calibration-open').onclick;$('setup-close').onclick=()=>$('setup-dialog').close();$('setup-form').onsubmit=saveSetup;
 $('confirm-photo-calibration').onclick=confirmPhotoCalibration;$('confirm-photo-setup').onchange=buttons;
+$('pot-preview-retry').onclick=()=>startCalibration().catch(e=>say(e.message,true));
 $('pot-photo').onchange=async()=>{await chooseFile($('pot-photo').files[0]);if(file)await startCalibration();};
 $('use-current-photo').onclick=()=>startCalibration().catch(e=>say(e.message,true));
 $('pot-redo').onclick=()=>potPicker.redo();$('pot-undo').onclick=()=>potPicker.undoLastPoint();$('pot-diameter').oninput=potChanged;$('pot-save').onclick=savePot;
 $('pot-pan').onclick=()=>{potPicker.panMode=!potPicker.panMode;$('pot-pan').classList.toggle('selected',potPicker.panMode);$('pot-pan').setAttribute('aria-pressed',String(potPicker.panMode));};$('pot-fit').onclick=()=>potPicker.fit();
-$('calibration-close').onclick=()=>$('calibration-card').hidden=true;
-$('analyze-pixels').onclick=()=>{$('calibration-card').hidden=true;analyze();};
+$('calibration-close').onclick=()=>{calibrationDeferred=true;$('calibration-card').hidden=true;buttons();};
+$('analyze-pixels').onclick=()=>{calibrationDeferred=true;$('calibration-card').hidden=true;analyze();};
 $('photo-retry').onclick=()=>chooseFile(pendingPhoto);
 $('plant').onchange=async()=>{if(!confirmDiscard()){if(selected)$('plant').value=selected.id;return;}try{await selectPlant();}catch(e){say(e.message,true);}};
 $('photo').onchange=()=>{const chosen=$('photo').files[0];$('photo').value='';if(confirmDiscard())chooseFile(chosen);};
@@ -399,11 +474,21 @@ $('graph-metric').onchange=()=>graph(historyMeasurements);
 window.addEventListener('resize',()=>{if(historyMeasurements.length)graph(historyMeasurements);});
 $('leaf-delete').onclick=()=>{try{editor.deleteLeaf(editor.selectedLeaf);leafMode('select');$('tool-message').textContent='Leaf removed; its lamina pixels are unassigned. Use Add / Reassign or erase confirmed non-lamina tissue.';say('Leaf removed; its tissue remains unassigned until you reassign it or edit the lamina mask.');}catch(e){say(e.message,true);}};
 $('leaf-add').onclick=()=>{try{editor.addLeaf();leafMode('add');renderLeafStats();}catch(e){say(e.message,true);}};
-$('resume').onclick=async()=>{if(working||!selected||!resumeId||!confirmDiscard())return;working=true;buttons();try{let data=await(await api('/api/analyses/'+resumeId)).json();if(data.profile_id!==selected.id)throw Error('This saved review belongs to another plant. Refresh its plant selection.');if(['UPLOADED','ERROR','ANALYZING'].includes(data.status))data=await json('/api/analyses/'+data.id+'/analyze',{});await showAnalysis(data);await pending();say('Saved review restored. Human approval is still pending.');}catch(error){say(error.message,true);}finally{working=false;buttons();}};
+$('resume').onclick=async()=>{if(working||!selected||!resumeId||!confirmDiscard())return;working=true;buttons();try{let data=await(await api('/api/analyses/'+resumeId)).json();if(data.profile_id!==selected.id)throw Error('This saved review belongs to another plant. Refresh its plant selection.');if(['UPLOADED','ERROR','ANALYZING'].includes(data.status)){setPhase('analyzing');data=await json('/api/analyses/'+data.id+'/analyze',{});}setPhase('review-loading');await showAnalysis(data);await pending();say('Saved review restored. Human approval is still pending.');}catch(error){say(error.message,true);}finally{working=false;setPhase('');buttons();}};
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&editor&&!working){editor.cancelDrawing();leafMode('select');}if((e.ctrlKey||e.metaKey)&&['z','y'].includes(e.key.toLowerCase())&&editor&&!working&&!editor.drawing&&($('review-card').classList.contains('editing')||!$('tool-drawer').hidden)&&!['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)){e.preventDefault();e.key.toLowerCase()==='y'||e.shiftKey?redoEditor():undoEditor();}});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 if($('login-form'))$('login-form').onsubmit=async e=>{e.preventDefault();try{await json('/api/login',{token:$('access-key').value});$('access-key').value='';await init();}catch(error){say(error.message,true);}};
 $('logout').onclick=async()=>{if(!confirmDiscard())return;await json('/api/logout',{});if(globalThis.leafScienceSession?.integrated)location.assign('/signin');else location.reload();};
+$('copy-photo-diagnostic').onclick=async()=>{const text=$('photo-diagnostic-text').textContent;try{await navigator.clipboard.writeText(text);$('photo-copy-status').textContent='Error details copied. No photo, filename or account information is included.';}catch{const range=document.createRange();range.selectNodeContents($('photo-diagnostic-text'));const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);$('photo-copy-status').textContent='Select and copy these error details.';}};
+$('workflow-action').onclick=()=>workflowAction().catch(e=>say(e.message,true));
+$('workflow-tips').onclick=()=>{const hidden=!$('workspace').classList.contains('tips-hidden');try{const key=tipsKey();if(key)localStorage.setItem(key,hidden?'hidden':'visible');}catch{}syncTips();};
+$('review-continue').onclick=()=>workflowAction('review');
+$('approval-fix').onclick=()=>workflowAction(guidance?.action).catch(e=>say(e.message,true));
+$('view-original').onclick=()=>viewPhoto(true);$('view-overlay').onclick=()=>viewPhoto(false);
+$('view-growth').onclick=()=>focusStep('history-card');
+$('another-photo').onclick=()=>{if(working)return;approvalConflict='';analysis=null;file=null;pendingPhoto=null;imageProvenance=null;uploadedReview=null;uploadRequestId=null;dirty=false;calibrationDeferred=false;calibrationSaved=false;reviewVisited=false;$('review-card').hidden=true;$('result-card').hidden=true;$('calibration-card').hidden=true;$('photo-progress').textContent='';$('file-label').textContent='Take a photo or choose JPEG, PNG or HEIC';buttons();focusStep('dropzone');};
+for(const n of document.querySelectorAll('[data-workflow-step]'))n.onclick=()=>{const target={plant:'plant',photo:'dropzone',calibration:'calibration-open',analyze:'analyze',review:'editor-viewport',approve:'approval-guidance',results:'result-card'}[n.dataset.workflowStep];focusStep(target);};
+
 function accountChrome(session){
  const header=document.querySelector('header');header.classList.add('integrated-header');
  document.querySelector('header h1').textContent='Analyze a plant.';
@@ -413,7 +498,7 @@ function accountChrome(session){
  identity.textContent=session.organization?.name||'University workspace';
  if(!nav){nav=document.createElement('nav');nav.id='science-navigation';nav.setAttribute('aria-label','Account navigation');header.append(nav);}
  nav.replaceChildren();
- const links=[['Analyze','/analyze'],['My university','/institution'],['Profile','/profile'],['User guide','/help']];
+ const links=[['Analyze','/analyze'],['My university','/institution'],['Profile','/profile']];
  if(['ORG_ADMIN','PLATFORM_ADMIN','PLATFORM_OWNER'].includes(session.user?.role))links.push(['Admin','/admin']);
  for(const [label,url] of links){const link=document.createElement('a');link.textContent=label;link.href=url;if(url==='/help'){link.target='_blank';link.rel='noopener';link.title='Open the user guide in a new tab';}if(url==='/analyze')link.setAttribute('aria-current','page');nav.append(link);}
 }
@@ -428,11 +513,12 @@ async function init(){working=true;buttons();try{
    if(session.user?.status!=='ACTIVE') {location.assign('/pending');return;}
    if(!session.user.email_verified_at&&!session.email_verification_deferred){location.assign('/profile');return;}
   }
-  if(!session.authenticated)return;
+  if(!session.authenticated)return;syncTips();
   config=await(await api('/api/config')).json();setupDefault=(await(await api('/api/setup')).json()).default_calibration;
   const now=new Date();$('photo-date').value=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
-  await refreshProfiles();working=false;buttons();say(profiles.length?'Select a plant and today’s photo.':'Create a plant profile to begin.');if(!profiles.length)await openSetup('new');
+  await refreshProfiles(new URLSearchParams(location.search).get('plant'));working=false;buttons();say(profiles.length?'Select a plant and today’s photo.':'Create a plant profile to begin.');renderGuidance();
  }catch(error){say(error.message,true);}finally{working=false;buttons();}
 }
+
 
 init();

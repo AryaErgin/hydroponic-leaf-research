@@ -18,11 +18,11 @@ function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve
 function element(){return{disabled:false,hidden:false,checked:false,value:'',textContent:'',children:[],classList:{toggle(){},add(){},remove(){}},replaceChildren(...nodes){this.children=nodes;this.lastChild=nodes.at(-1);},append(...nodes){this.children.push(...nodes);this.lastChild=nodes.at(-1);},scrollIntoView(){},showModal(){this.open=true;},close(){this.open=false;},setAttribute(){}};}
 function fixture(){
  const ui={},calls=[],messages=[],storage=new Map();
- const env={...policy,selected:{id:'p',display_name:'Plant P',calibration:{id:'old',pot_diameter_cm:5.82}},profiles:[],file:new File(['old'],'old.png',{type:'image/png'}),analysis:null,editor:null,savingApproval:false,
-  working:false,dirty:false,setupMode:'new',setupTarget:null,setupCalibration:null,setupRequestId:'plant-request',setupSaving:false,calibrationSaving:false,selectionRevision:1,
+ const env={...policy,selected:{id:'p',species:'lettuce',display_name:'Plant P',calibration:{id:'old',pot_diameter_cm:5.82}},profiles:[],file:new File(['old'],'old.png',{type:'image/png'}),analysis:null,editor:null,savingApproval:false,
+  showPhotoDiagnostic(){},setPhase(){},renderGuidance(){},workflowPhase:'',approvalConflict:'',calibrationDeferred:false,calibrationSaved:false,reviewVisited:false,working:false,dirty:false,setupMode:'new',setupTarget:null,setupCalibration:null,setupRequestId:'plant-request',setupSaving:false,calibrationSaving:false,selectionRevision:1,
   photoSerial:0,calibrationSerial:0,pendingPhoto:null,imageProvenance:null,uploadRequestId:'upload-request',uploadedReview:null,config:{max_upload_bytes:100000},
   potPicker:{file:new File(['calibration'],'calibration.png',{type:'image/png'}),image:{},points:[[10,10],[90,10]],distance(){return 80;},async load(file){this.file=file;this.points=[];},fit(){}},
-  $:id=>ui[id]||(ui[id]=element()),document:{createElement:element},File,Blob,FormData,crypto:require('node:crypto').webcrypto,requestAnimationFrame:fn=>fn(),
+  window:{confirm:()=>true},$:id=>ui[id]||(ui[id]=element()),document:{createElement:element},File,Blob,FormData,crypto:require('node:crypto').webcrypto,requestAnimationFrame:fn=>fn(),
   localStorage:{removeItem:k=>storage.delete(k),setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},userMessage:e=>String(e.message||e),buttons(){},calibrationStatus(){},renderLeafStats(){},step(){},confirmDiscard:()=>true,
   say:(...args)=>messages.push(args),refreshProfiles:async()=>{},pending:async()=>{},showAnalysis:async data=>{env.analysis=data;},
   api:async(url,options)=>{calls.push({url,options});throw Error('Unexpected API request '+url);},json:async()=>{throw Error('Unexpected JSON request');},
@@ -45,6 +45,16 @@ async function check(name,fn){try{await fn();results.push({name,status:'PASS'});
  await check('Preparation failure clears previous review and offers actual reason and same-file retry',async()=>{
   const f=fixture();const photo=new File(['photo'],'photo.jpg',{type:'image/jpeg'});f.env.analysis={id:'old'};f.env.api=async()=>{throw Error('Photo format is unsupported');};
   await f.chooseFile(photo);assert.equal(f.env.pendingPhoto,photo);assert.equal(f.env.analysis,null);assert.equal(f.env.$('review-card').hidden,true);assert.equal(f.env.$('photo-retry').hidden,false);assert.match(f.env.$('photo-progress').textContent,/unsupported/);assert.equal(f.env.working,false);
+ });
+ await check('Adding plant keeps prepared frame/provenance without preparing original twice',async()=>{
+  const f=fixture(),original=new File(['original'],'raw.heic',{type:'image/heic'}),ready=new File(['ready'],'ready.png',{type:'image/png'}),provenance={normalized_sha256:'bound-frame'};
+  f.env.selected=null;f.env.setupMode='new';f.env.analysis=null;f.env.pendingPhoto=original;f.env.file=ready;f.env.imageProvenance=provenance;
+  f.env.json=async()=>({id:'new'});f.env.refreshProfiles=async()=>{f.env.selected={id:'new',display_name:'New',calibration:null};f.env.file=null;f.env.pendingPhoto=null;f.env.imageProvenance=null;};
+  await f.saveSetup({preventDefault(){}});assert.equal(f.calls.length,0);assert.equal(f.env.file,ready);assert.equal(f.env.imageProvenance,provenance);assert.equal(f.env.pendingPhoto,original);assert.equal(f.env.potPicker.file,ready);
+ });
+ await check('Species change keeps photo but invalidates previous species review and confirmation',async()=>{
+  const f=fixture(),photo=f.env.file;f.env.setupMode='edit';f.env.analysis={id:'a',profile_id:'p',species:'lettuce'};f.env.dirty=true;f.env.$('species').value='rumex_acetosa';f.env.$('review-confirm').checked=true;f.env.$('plant').options=[{value:'p'}];f.env.json=async()=>({...f.env.selected,species:'rumex_acetosa'});
+  await f.saveSetup({preventDefault(){}});assert.equal(f.env.file,photo);assert.equal(f.env.analysis,null);assert.equal(f.env.$('review-confirm').checked,false);assert.equal(f.env.$('review-card').hidden,true);assert.equal(f.env.selected.species,'rumex_acetosa');
  });
  await check('Initial empty selection calibration save returns safely',async()=>{const f=fixture();f.env.setupTarget=null;f.env.selected=null;await f.savePot();assert.equal(f.calls.length,0);});
  await check('Plant creation double submit blocked; lost response retries same request identity',async()=>{

@@ -1,20 +1,21 @@
 {
-  "capture_date": "2026-11-16",
+  "capture_date": "2026-11-17",
   "data_kind": "original_synthetic_local_demo",
   "image_rights": "Actual application UI with original procedural CC0 artwork; no third-party photographs or private records.",
-  "annotations": "Numbered tap outlines only. Each image is a single unstitched 390x844 CSS-pixel Chrome mobile-emulation viewport at2x; no physical-iPhone/Safari capture claim.",
+  "annotations": "Numbered tap outlines only. Each image is one actual unstitched390x844CSS-pixel Chrome mobile/touch viewport at2x; no physical iPhone or nativepicker claim.",
   "viewport_css_px": [
     390,
     844
   ],
   "physical_iphone_safari": false,
   "ui_sources": {
-    "src/webapp/static/index.html": "61989c9d7f6c57add39ad3f2a2162892fe6b43d92930466d2c9d3581a5df6919",
-    "src/webapp/static/app.js": "4e81490efc3db28b0459cd9bbddbfa2e2b70f2444f179653817754d1a232262b",
-    "src/webapp/static/style.css": "101690e394e6b87335afc831ac74c89c24e56c2afb3947f7acd9efc28a923f34",
+    "src/webapp/static/index.html": "5b152a22832d08e407f6391d7731368439735d4c739cb4f0968ddb311bedbfae",
+    "src/webapp/static/app.js": "818d740a8e8c9cbeef41cfa783666eb32d0d4e254b8649c6f68e3bd72c4a3adb",
+    "src/webapp/static/style.css": "259cfa57895c82a14262be642b1fe66a1b7fa99918268ac69f5a82db6830a935",
     "src/webapp/static/mask-editor.js": "065ea06e80af989af23018561351bbdf8961b9eaa11ce8a45bdaa005cf013c92",
-    "src/auth_preview/static/app.js": "8df3f3ede4678b1ccef6755c2cfb9353f65ef507aa39c7965a5922585715e28b",
-    "src/firebase_preview/static/app.js": "65379b72e3308b3666e389762d26c9f46e2de6fc6b21a537f6b99520d40a0144"
+    "src/auth_preview/static/app.js": "301d71a30d1ad2e3dfd162129d2fdcb69cc23a16d569d4e550656dbc635f0e00",
+    "src/firebase_preview/static/app.js": "65379b72e3308b3666e389762d26c9f46e2de6fc6b21a537f6b99520d40a0144",
+    "src/webapp/static/workflow-state.js": "578701f9bbb235d9ef29c1fbc6149236541b9b09ba7d8f05612cfe2778702b73"
   },
   "images": [
     {
@@ -23,8 +24,8 @@
         780,
         1688
       ],
-      "bytes": 73542,
-      "sha256": "0fa5994cde988b2bd42e34d8ba2963b29ffd3faa9f85eb90ffe77d7e26ecae72"
+      "bytes": 56750,
+      "sha256": "b1a6f76d11deb1bacb6081b046765135d7457385ab7b967cefe49eb648e4165d"
     },
     {
       "file": "step-02.webp",
@@ -32,8 +33,8 @@
         780,
         1688
       ],
-      "bytes": 71008,
-      "sha256": "84cb4e7da91ec5e21907059c29ec9a5ea769b1265d34c59c45488bd0fd2e6ac4"
+      "bytes": 60660,
+      "sha256": "94e4e5f0a1f469fadd5eee81754c51bf83a5156f2790638aff934386125b7a86"
     },
     {
       "file": "step-03.webp",
@@ -41,8 +42,8 @@
         780,
         1688
       ],
-      "bytes": 69900,
-      "sha256": "8b3f4e38e856d722cfd7e41cda130ce9181b92426002646b4f5b07cc89324be2"
+      "bytes": 58754,
+      "sha256": "5d86ce36cbb46d522fd20d4204d10618ac460c5a17cd59d0d18e92dedbb4dab1"
     },
     {
       "file": "step-04.webp",
@@ -50,8 +51,8 @@
         780,
         1688
       ],
-      "bytes": 65342,
-      "sha256": "e621add55d268f6d5b4c8f9e878c31fd92103cb6b324c7674d2e282d9ac46722"
+      "bytes": 53742,
+      "sha256": "c4a3fd6b2b699120a2f33bed9b36bc6496213093b1ca12701fa346f004588cd3"
     },
     {
       "file": "step-05.webp",
@@ -59,8 +60,8 @@
         780,
         1688
       ],
-      "bytes": 53144,
-      "sha256": "6e54077f246cc115c8f51f397d832b1d5e5149ded3bbacd762fe2a66e795f3cf"
+      "bytes": 55700,
+      "sha256": "c5b4b0a05668d5387e793eaaf1e79ea0625e06b6f51ffd1e1eba35dfe5d17647"
     },
     {
       "file": "step-06.webp",
@@ -68,8 +69,8 @@
         780,
         1688
       ],
-      "bytes": 53484,
-      "sha256": "d8e07ec043c3b441db16ddc7200edf77c234dcb22d9110ee0d3caafb5e1d8967"
+      "bytes": 55334,
+      "sha256": "b6451d4d1915257de75760dc490607942d8dba034df2420cbd2fe90906bb65a6"
     },
     {
       "file": "step-07.webp",
@@ -77,8 +78,8 @@
         780,
         1688
       ],
-      "bytes": 55562,
-      "sha256": "a9e312f1368a1630e72c97987208dd831dee8b0396e55551df5e7f65a987c9b6"
+      "bytes": 59518,
+      "sha256": "566acb1b07d5029d72b9b625ba632c5e2419b48d2e534a0f61dfdf7eb69b2bff"
     },
     {
       "file": "step-08.webp",
@@ -86,8 +87,8 @@
         780,
         1688
       ],
-      "bytes": 64668,
-      "sha256": "ccd06a4616693e3bacf447616d1a8ffaee8305cec5d2ac6cacf1dc6a47779166"
+      "bytes": 74138,
+      "sha256": "d6e148fe97a8eaf1663916aad76c38decb846247f5f1b67aa3dff5f28471322f"
     },
     {
       "file": "step-09.webp",
@@ -95,8 +96,8 @@
         780,
         1688
       ],
-      "bytes": 71508,
-      "sha256": "7b0fa2c2880020d0cbd7d4fbc44dd7960c98b2cf966fc999731a845887c6a7f8"
+      "bytes": 56696,
+      "sha256": "41baeb196cad049e8cdad2ee307e9230875b4c0a17eab2cc7f46103275add8b8"
     },
     {
       "file": "step-10.webp",
@@ -104,8 +105,8 @@
         780,
         1688
       ],
-      "bytes": 51566,
-      "sha256": "fb671e58ddf730b5f691c61950f62b90b77480cba10564756901d2303eb390e7"
+      "bytes": 67508,
+      "sha256": "0b41470d0101fc8439268d3e22979b22a920df95382dceaff84eb1fb60f24c98"
     },
     {
       "file": "step-11.webp",
@@ -113,8 +114,8 @@
         780,
         1688
       ],
-      "bytes": 55040,
-      "sha256": "f9172ceb28c4fdf668e1978d48eefae350b44bf107e6d484a60f05ca2b057929"
+      "bytes": 61936,
+      "sha256": "c87d58e48191f1721308d5f5a41f72e48ba1283b02c79a938c2e24e44b4d65ce"
     },
     {
       "file": "step-12.webp",
@@ -122,8 +123,8 @@
         780,
         1688
       ],
-      "bytes": 63438,
-      "sha256": "7cd589a45f6dd35bc63964a87986226ecca7500948d55e380affbba05d6cf532"
+      "bytes": 58478,
+      "sha256": "a1383a220e123333342b83be6060801be38090fb286537b98db1d37a10a5210d"
     }
   ]
 }

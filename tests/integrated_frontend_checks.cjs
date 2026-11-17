@@ -12,7 +12,7 @@ const flush=()=>new Promise(resolve=>setImmediate(resolve));
  context.window.leafAuth.go('/analyze');
  assert.deepEqual(assigned,['/analyze']);assert.equal(pushed.length,0,'Science must load its own HTML and scripts');
  context.window.leafAuth.go('/institution');await flush();
- assert(nodes['#main'].innerHTML.includes('University lettuce'));assert(!nodes['#main'].innerHTML.includes('Synthetic'));assert(!requested.some(p=>p.includes('/workspace/')));
+ const institutionHTML=nodes['#main'].innerHTML+(nodes['#university-plant-list']?.innerHTML||'');assert(institutionHTML.includes('University lettuce'));assert(!institutionHTML.includes('Synthetic'));assert(!requested.some(p=>p.includes('/workspace/')));
  assert(nodes['#navigation'].innerHTML.includes('My university'),'Members can reach their institution');
  context.window.leafAuth.go('/profile');await flush();
  assert(nodes['#main'].innerHTML.includes('Change email address'));

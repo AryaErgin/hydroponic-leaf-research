@@ -8,7 +8,7 @@ import mimetypes
 from pathlib import Path
 import secrets
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -103,6 +103,12 @@ class PlantCreate(PlantIdentity):
 class PlantCalibration(BaseModel):
     model_config=ConfigDict(extra='forbid')
     calibration_id:str
+
+
+class CaptureDateInput(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    new_date:date=Field(alias='date')
+    expected_date:date
 
 
 def create_app(settings=None,*,service_override=None):
@@ -244,11 +250,25 @@ def create_app(settings=None,*,service_override=None):
         return await run_in_threadpool(service.reviewed_pot,data,image.filename,image.content_type,diameter_cm,endpoints,reviewed)
 
     @app.post('/api/images/prepare')
-    async def prepare(image:UploadFile=File(...)):
-        data=await bounded(image,settings.max_upload_bytes)
-        prepared,mime,metadata=await run_in_threadpool(prepare_image,data,image.filename,image.content_type,settings)
+    async def prepare(request:Request,image:UploadFile=File(...)):
+        request_id=str(uuid4());data=b''
+        diagnostic=dict(stage='prepare',request_id=request_id,revision=__import__('os').environ.get('K_REVISION','local'))
+        try:
+            data=await bounded(image,settings.max_upload_bytes)
+            diagnostic['received_bytes']=len(data)
+            prepared,mime,metadata=await run_in_threadpool(prepare_image,data,image.filename,image.content_type,settings)
+        except (ValueError,HTTPException) as error:
+            diagnostic.update(received_bytes=None if isinstance(error,HTTPException) and error.status_code==413 else len(data),pixel_limit=settings.max_image_pixels,
+                decoder_error_type=type(error.__cause__).__name__ if error.__cause__ else type(error).__name__)
+            safe=getattr(error,'diagnostic',{})
+            for key in ('detected_format','width','height','frames'):
+                if key in safe:diagnostic[key]=safe[key]
+            code=getattr(error,'code','image.too_large' if isinstance(error,HTTPException) and error.status_code==413 else 'image.prepare_failed')
+            detail=str(error) if getattr(error,'code',None) else ('Photo exceeds the configured upload size limit. Choose a smaller still photo.' if isinstance(error,HTTPException) and error.status_code==413 else 'The image decoder could not prepare this photo. Copy the error details, then select a still JPEG, PNG or HEIC image.')
+            __import__('logging').getLogger('hydroponic.image_prepare').warning(json.dumps({'event':'photo_prepare_failed','code':code,**diagnostic},separators=(',',':')))
+            return JSONResponse({'detail':detail,'code':code,'diagnostic':diagnostic},status_code=413 if isinstance(error,HTTPException) else 400,headers={'X-Photo-Request-ID':request_id})
         return Response(prepared,media_type=mime,headers={'X-Image-Provenance':json.dumps(metadata,separators=(',',':')),
-            'X-Image-Sha256':metadata['normalized_sha256'],'X-Image-Width':str(metadata['normalized_size_px'][0]),
+            'X-Photo-Request-ID':request_id,'X-Image-Sha256':metadata['normalized_sha256'],'X-Image-Width':str(metadata['normalized_size_px'][0]),
             'X-Image-Height':str(metadata['normalized_size_px'][1])})
 
     @app.post('/api/plants/{id}/calibration/two-point',status_code=201)
@@ -290,6 +310,10 @@ def create_app(settings=None,*,service_override=None):
 
     @app.post('/api/analyses/{id}/draft')
     async def draft(id:str,request:Request):return await run_in_threadpool(service.draft,id,await request.json())
+
+    @app.post('/api/analyses/{id}/capture-date',response_model=LeafMetricsResponse)
+    async def capture_date(id:str,payload:CaptureDateInput):
+        return await run_in_threadpool(service.capture_date,id,payload.new_date,payload.expected_date)
 
     @app.post('/api/analyses/{id}/split-leaf')
     async def split_leaf(id:str,request:Request):return await run_in_threadpool(service.split_leaf,id,await request.json())

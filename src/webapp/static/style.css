@@ -11,3 +11,55 @@
 /* Account controls use the shared institution session; editor layout stays native. */
 .integrated-header{flex-wrap:wrap;align-items:center}.integrated-header h1{flex:1;min-width:0}.integrated-header #science-identity{flex-basis:100%;margin:0;font-size:14px;overflow-wrap:anywhere}.integrated-header nav{display:flex;gap:6px;flex-wrap:wrap;width:100%;border-bottom:1px solid var(--line);padding-bottom:10px}.integrated-header nav a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 12px;color:var(--ink);border-radius:9px;text-decoration:none}.integrated-header nav a[aria-current=page]{background:#dfece0;font-weight:700}.integrated-header nav a:focus-visible{outline:3px solid #2779d4;outline-offset:2px}
 @media(max-width:350px){.integrated-header h1{font-size:22px}.integrated-header nav{gap:2px}.integrated-header nav a{padding:9px 10px;font-size:14px}}
+
+/* State-driven guidance. It adds no geometry or scientific measurement state. */
+#workflow-guide{padding:8px 2px 18px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.workflow-steps{list-style:none;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;padding:0;margin:0 0 12px;min-width:0}
+.workflow-steps li{min-width:0}.workflow-steps button{display:flex;flex-direction:column;gap:4px;width:100%;min-width:44px;min-height:44px;padding:5px 2px;border:0;border-radius:8px;background:transparent;font-size:12px;color:var(--muted);font-weight:550}
+.workflow-number{display:grid;place-items:center;width:28px;height:28px;border:1px solid #b7c9bb;border-radius:50%;background:var(--paper);color:var(--ink);font-size:14px;font-weight:700}
+.workflow-number .step-check{display:none;width:20px;height:20px}
+.workflow-steps .current{color:var(--ink);font-weight:750;background:#e0ece3}.workflow-steps .current .workflow-number{background:var(--green);border-color:var(--green);color:#fff}
+.workflow-steps .complete .workflow-number{background:#dceee1;border-color:#648f70;color:#175637}.workflow-steps .complete .step-index{display:none}.workflow-steps .complete .step-check{display:block}
+.workflow-steps .optional .workflow-number{border-style:dashed}.workflow-steps button:disabled{opacity:.65}.workflow-step-label{display:block}
+.workflow-instruction{display:flex;align-items:flex-start;gap:12px;justify-content:space-between}.workflow-instruction>div{min-width:0;flex:1}.workflow-instruction h2{font-size:19px;line-height:1.3;margin:0}.workflow-instruction p{font-size:14px;margin:6px 0 10px;max-width:65ch}.workflow-instruction #workflow-tips{padding:4px 7px;font-size:13px;flex:none}
+#workspace[data-guided-step] button.primary{background:var(--paper);border-color:#8daa94;color:var(--green)}
+#workspace[data-guided-step] #workflow-action,#workspace[data-guided-step="calibration"] #pot-save,#workspace[data-guided-step="approve"] #approve{background:var(--green);border-color:var(--green);color:#fff}
+#workflow-action{width:100%;min-height:48px}#analysis-phase{margin:8px 0 12px;padding:10px 12px;background:#e8f1eb;color:var(--ink);font-size:14px}
+.control-help{font-size:14px;margin:0 0 10px;max-width:65ch}.control-help#photo-help{margin-top:16px}.review-instruction{font-size:15px;color:var(--ink);max-width:65ch;margin:0 0 8px}
+#workspace.tips-hidden .control-help,#workspace.tips-hidden #workflow-hint{display:none}.guidance-target{outline:3px solid #2779d4;outline-offset:3px;scroll-margin-block:20px}
+.dropzone:focus-within{outline:3px solid #2779d4;outline-offset:3px}#review-card> .section-head{margin-bottom:8px}#review-area{max-width:75ch}
+#tool-stick{padding:7px 0;background:var(--paper);margin:12px 0 6px}#leaf-tools .tool-banner{margin-bottom:6px}#active-tool{padding:8px 10px;min-height:40px;font-size:13px;flex:1}#tool-done{min-height:44px;font-size:13px;padding:8px 12px}
+.toolbar-primary{grid-template-columns:repeat(3,minmax(0,1fr));max-width:none;gap:6px}.toolbar-primary button{min-height:44px;padding:8px 10px;font-size:14px}.toolbar-primary button:nth-last-child(-n+2){background:var(--paper)}.toolbar-primary button.selected,.toolbar-primary button[aria-pressed=true]{background:var(--blue)}
+#leaf-mode-note{margin:6px 0 10px;max-width:70ch;color:var(--ink)}.editor-workspace>.views,#leaf-tools>.views{display:block;min-width:0}.views #overlay-panel{width:100%}.views .original-photo{margin:8px 0}.views .original-photo .image-view{height:min(56svh,520px)}
+.photo-view-switch{display:flex;gap:6px;margin-bottom:8px}.photo-view-switch button{flex:1;font-size:14px;padding:9px 8px;min-height:44px}.photo-view-switch button[aria-pressed=true]{background:#e0ece3;color:var(--ink);border:1px solid #73977d;box-shadow:none}
+#overlay-title{font-size:13px;line-height:1.4;color:var(--muted);font-weight:550;margin:4px 0}.gesture-hint{font-size:12px}.tool-secondarybar{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 8px}.tool-secondarybar button{flex:1;min-height:44px;font-size:14px;padding:9px 8px}
+.tool-group{min-width:0;padding:0;margin:10px 0 12px;border:0}.tool-group legend{font-size:13px;font-weight:700;color:var(--muted);padding:0;margin-bottom:6px}.tool-group .leaf-controls{margin:0;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.undo-tools>div{display:flex;gap:7px}.undo-tools button{min-width:96px;min-height:44px}.leaf-choice{font-size:14px}.leaf-choice select{width:65%}
+#review-continue{width:100%;min-height:48px;margin:12px 0}#approval-guidance{margin:14px 0;padding-top:14px;border-top:1px solid var(--line)}#approval-guidance h3{font-size:17px;line-height:1.35;margin:0 0 8px}.approval-checklist{list-style:none;padding:0;margin:8px 0 12px;display:grid;gap:8px}.approval-checklist li{display:flex;align-items:flex-start;gap:8px;color:var(--muted);font-size:14px;min-width:0}.approval-checklist .complete,.approval-checklist [data-complete=true]{color:#175637}.approval-checklist button{font-size:14px}.approval-checklist .check-status{flex:none;width:22px;height:22px}.approval-reason{margin-top:10px}.result-success{font-size:17px;font-weight:700;color:#175637;margin:0 0 8px}.result-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.result-actions button{flex:1;min-height:48px}
+#workspace[data-guided-step="review"] #review-continue,#workspace[data-guided-step="results"] #view-growth{background:var(--green);color:#fff;border-color:var(--green)}
+@media(max-width:599px){.workflow-step-label{display:none}.workflow-steps button{min-height:44px}.workflow-instruction{gap:6px}.workflow-instruction #workflow-tips{max-width:64px;line-height:1.2}#review-card .badge{max-width:100%;font-size:11px}.leaf-summary{margin:12px 0}.photo-calibration{font-size:14px}.editor-workspace>.views,#leaf-tools>.views{width:100%}}
+@media(max-width:359px){.workflow-steps{grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;margin-bottom:8px}.workflow-steps button{flex-direction:row;min-height:44px;min-width:44px}.workflow-instruction h2{font-size:18px}.tool-secondarybar button{flex-basis:calc(50% - 4px)}.tool-secondarybar #save-draft{flex-basis:100%}.tool-group .leaf-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar-primary{grid-template-columns:repeat(3,minmax(0,1fr))}.toolbar-primary #leaf-pan{grid-column:auto;grid-row:auto}}
+@media(min-width:600px){#workflow-guide{padding:10px 0 20px}.workflow-steps{gap:8px}.workflow-steps button{padding:7px 4px;min-height:64px;font-size:13px}.workflow-number{width:30px;height:30px}#workflow-action{width:auto;min-width:220px}.workflow-instruction h2{font-size:22px}.toolbar-primary{max-width:540px}.tool-secondarybar{max-width:680px}.tool-group .leaf-controls{grid-template-columns:repeat(5,minmax(0,1fr))}.photo-view-switch{max-width:420px}.result-actions{justify-content:flex-start}.result-actions button{flex:0 1 auto;min-width:180px}.approval-checklist{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px}}
+
+#capture-details{margin:12px 0}#capture-details>summary{min-height:44px;padding:10px 4px;font-weight:650;cursor:pointer}#capture-details[open]>summary{margin-bottom:8px}#capture-details .upload-card{margin:0}
+
+/* Keep the instruction on the control being used, not only above the page. */
+.guided-local-step{padding:10px 12px;background:#e6f0e9;color:#173d31;border:1px solid #9bbca8;border-radius:8px;font-weight:650;line-height:1.45}
+#approval-error:not(:empty){padding:12px;border:2px solid #9b3a24;border-radius:8px;background:#fff1e9;color:#682514;font-weight:650}
+@media(max-width:599px){.workflow-step-label{display:block;font-size:11px;line-height:1.15}.workflow-steps button{gap:4px;min-height:54px}.workflow-steps [data-workflow-step="calibration"] .workflow-step-label{font-size:0}.workflow-steps [data-workflow-step="calibration"] .workflow-step-label:after{content:"Scale";font-size:11px}}
+
+#workspace.tips-hidden .hint:not(#leaf-note):not(#pot-summary),
+#workspace.tips-hidden .gesture-hint,
+#workspace.tips-hidden .review-instruction,
+#workspace.tips-hidden .review-checklist,
+#workspace.tips-hidden #pot-action-hint,
+#workspace.tips-hidden #leaf-mode-note{display:none}
+#workspace.tips-hidden #workflow-guide{margin-bottom:10px;padding-bottom:12px}
+#workspace.tips-hidden .leaf-summary{margin-block:10px}
+#workspace.tips-hidden #leaf-note{font-size:13px;line-height:1.4}
+
+.approve-blocker{margin:8px 0 0;padding:0 2px;color:#684b18;font-size:14px;line-height:1.4}
+.approve-blocker .approval-reason{margin:0;padding:0;border:0;background:none;font-size:14px;font-weight:500}
+.approve-blocker #approval-fix{display:inline-flex;min-height:44px;padding:5px 0;text-decoration:underline;text-underline-offset:3px;text-align:left}
+.approve-blocker #approval-error:not(:empty){font-size:13px;margin:4px 0;padding:8px;font-weight:500}
+
+#photo-diagnostic{margin-top:12px;padding:12px;border:1px solid #c4b188;border-radius:8px;background:#fff9eb}#photo-diagnostic p{margin:4px 0;font-size:13px}#photo-diagnostic summary{min-height:44px;padding-block:10px;cursor:pointer}#photo-diagnostic pre{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;user-select:text}.photo-error-code{font-weight:700}

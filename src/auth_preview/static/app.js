@@ -66,13 +66,38 @@ function pending(){
  bindEmail();
  $('#refresh-status').onclick=async()=>{await refresh();if(state.user?.status==='ACTIVE')go('/analyze');else{render();notice('Current account status refreshed.');}};
 }
+// Pagination changes presentation only; the server still supplies the verified institution scope.
+let universityPage=0,universityPageOwner='';
 async function university(version=rendering){
- const viewer=state.user?.id;
+ const viewer=state.user?.id,owner=JSON.stringify([viewer,state.user?.org_id,state.organization?.id]);
+ const isCurrent=()=>version===rendering&&owner===JSON.stringify([state.user?.id,state.user?.org_id,state.organization?.id]);
  if(!state.user)return signIn();if(state.user.status!=='ACTIVE')return pending();
  const plants=await api('/api/profiles');
- if(version!==rendering||viewer!==state.user?.id)return;
- main.innerHTML=`${heading('My university',esc(state.organization?.name||'University workspace'),'Plants and reviewed growth history shared within your verified university.')}<section class="card space"><h2>Your university’s plants</h2><p>${plants.length} plant${plants.length===1?'':'s'} in this workspace.</p><div class="list">${plants.map(p=>`<article><strong>${esc(p.display_name||p.plant_id)}</strong><p class="help">${esc(p.species==='lettuce'?'Lettuce':'Kuzukulağı / Rumex acetosa')}</p></article>`).join('')||'<p>No plants yet. Add your first plant in the analysis workspace.</p>'}</div><div class="actions"><a href="/analyze">Analyze a plant →</a></div><p class="help space">Open a plant in Analyze to review its photos, calibration, approved measurements, growth history, and CSV export.</p></section>`;
+ if(!isCurrent())return;
+ if(owner!==universityPageOwner){universityPage=0;universityPageOwner=owner;}
+ const pageSize=10,pageCount=Math.max(1,Math.ceil(plants.length/pageSize));
+ universityPage=Math.min(Math.max(0,universityPage),pageCount-1);
+ main.innerHTML=`${heading('My university',esc(state.organization?.name||'University workspace'),'Plants and reviewed growth history shared within your verified university.')}<section class="card space university-plants" aria-labelledby="university-plants-title"><div class="plant-list-heading"><div><h2 id="university-plants-title">Your university’s plants</h2><p id="plant-page-status" class="plant-page-status" role="status" aria-live="polite" aria-atomic="true"></p></div><a href="/analyze" class="plant-new-analysis">Analyze a plant</a></div><ul id="university-plant-list" class="university-plant-list" aria-label="Plants on this page"></ul><div id="plants-empty" class="plants-empty" hidden><h3>No plants yet</h3><p>Add your first plant in the analysis workspace. Its photos and reviewed measurements will stay together.</p><a href="/analyze">Add your first plant</a></div><nav class="plant-page-navigation" aria-label="Plant list pages"><p id="plant-page-position" class="plant-page-position"></p><div class="plant-page-buttons"><button id="plants-prev" type="button" class="secondary" aria-controls="university-plant-list">Previous</button><button id="plants-next" type="button" class="secondary" aria-controls="university-plant-list">Next</button></div></nav><p class="help plant-list-help">Open a plant to review its photos, calibration, approved measurements, growth history, and CSV export.</p></section>`;
+ function draw(){
+  if(!isCurrent())return;
+  const start=universityPage*pageSize,visible=plants.slice(start,start+pageSize);
+  $('#university-plant-list').innerHTML=visible.map(p=>{
+   const name=p.display_name||p.plant_id||'Unnamed plant';
+   const species=p.species==='lettuce'?'Lettuce':p.species==='rumex_acetosa'?'Kuzukulağı / Rumex acetosa':p.species||'Species not recorded';
+   const identifier=p.plant_id&&p.plant_id!==name?' · ID '+p.plant_id:'';
+   return `<li class="plant-row"><article class="plant-row-info"><h3>${esc(name)}</h3><p>${esc(species+identifier)}</p></article><a class="plant-open-analysis" href="/analyze?plant=${encodeURIComponent(String(p.id||''))}" aria-label="${esc('Analyze '+name)}">Analyze</a></li>`;
+  }).join('');
+  $('#plant-page-status').textContent=plants.length?`${start+1}–${Math.min(start+pageSize,plants.length)} of ${plants.length} plant${plants.length===1?'':'s'}`:'0 plants';
+  $('#plant-page-position').textContent=plants.length?`Page ${universityPage+1} of ${pageCount}`:'No pages to show';
+  $('#plants-empty').hidden=plants.length>0;
+  $('#plants-prev').disabled=universityPage===0;
+  $('#plants-next').disabled=universityPage>=pageCount-1;
+ }
+ $('#plants-prev').onclick=()=>{if(!isCurrent())return;if(universityPage>0){universityPage--;draw();}};
+ $('#plants-next').onclick=()=>{if(!isCurrent())return;if(universityPage<pageCount-1){universityPage++;draw();}};
+ draw();
 }
+
 async function institution(version=rendering){
  if(integrated())return university(version);
  const viewer=state.user?.id;
@@ -111,12 +136,32 @@ function profile(){
  $('#profile-signout').onclick=signOut;
 }
 function adminGuard(){if(!state.user||state.user.status!=='ACTIVE'||!isAdmin()){main.innerHTML=heading('Restricted','Administrator access required.','This page is available to authorized administrators. Server-side checks also apply to every action.');return false;}return true;}
+let auditPage=0,auditPageOwner='';
 async function dashboard(version=rendering){
- const viewer=state.user?.id;
- if(!adminGuard())return;const {users}=await api('/api/admin/users');if(version!==rendering||viewer!==state.user?.id)return;
- main.innerHTML=`${heading('Administration','Access, with oversight.','Review account requests and keep research access within verified institutions.')}<div class="grid">${[['Pending requests',users.filter(u=>u.status==='PENDING').length],['Active accounts',users.filter(u=>u.status==='ACTIVE').length],['Suspended accounts',users.filter(u=>u.status==='SUSPENDED').length]].map(([title,n])=>`<section class="card"><div class="stat">${n}</div><p>${title}</p></section>`).join('')}</div><div class="actions"><button id="pending-users">Review pending requests</button><a href="/users">Manage users →</a>${isPlatform()?'<a href="/organizations">Manage institutions →</a>':''}</div><section class="space"><h2>Audit log</h2><p class="help">${isPlatform()?'Latest 300 account and organization events. Passwords, session tokens, and recovery codes are excluded.':'Platform administrators and the owner can inspect the audit log.'}</p><div class="audit list" id="audit"></div></section>`;
+ const owner=JSON.stringify([state.user?.id,state.user?.org_id,state.organization?.id,state.user?.role,state.user?.status]);
+ const isCurrent=()=>version===rendering&&owner===JSON.stringify([state.user?.id,state.user?.org_id,state.organization?.id,state.user?.role,state.user?.status]);
+ if(!adminGuard())return;const {users}=await api('/api/admin/users');if(!isCurrent())return;
+ main.innerHTML=`${heading('Administration','Access, with oversight.','Review account requests and keep research access within verified institutions.')}<div class="grid">${[['Pending requests',users.filter(u=>u.status==='PENDING').length],['Active accounts',users.filter(u=>u.status==='ACTIVE').length],['Suspended accounts',users.filter(u=>u.status==='SUSPENDED').length]].map(([title,n])=>`<section class="card"><div class="stat">${n}</div><p>${title}</p></section>`).join('')}</div><div class="actions"><button id="pending-users">Review pending requests</button><a href="/users">Manage users</a>${isPlatform()?'<a href="/organizations">Manage institutions</a>':''}</div><section class="space audit-section" aria-labelledby="audit-title"><h2 id="audit-title">Audit log</h2><p class="help audit-scope-note">${isPlatform()?'The server returns at most the latest 300 account and organization events, not the full audit history. Passwords, session tokens, and recovery codes are excluded.':'Platform administrators and the owner can inspect the audit log.'}</p><div id="audit-pagination-panel" class="audit-pagination-panel"${isPlatform()?'':' hidden'}><p id="audit-page-status" class="audit-page-status" role="status" aria-live="polite" aria-atomic="true"></p><ul class="audit audit-log-list" id="audit" aria-label="Audit events on this page"></ul><p id="audit-empty" class="audit-empty" hidden>No audit events were returned.</p><nav class="audit-page-navigation" aria-label="Audit log pages"><p id="audit-page-position"></p><div class="audit-page-buttons"><button id="audit-prev" type="button" class="secondary" aria-controls="audit">Previous</button><button id="audit-next" type="button" class="secondary" aria-controls="audit">Next</button></div></nav></div></section>`;
  $('#pending-users').onclick=()=>{go('/users');setTimeout(()=>{if($('#status-filter')){$('#status-filter').value='PENDING';$('#status-filter').dispatchEvent(new Event('change'));}},100);};
- if(isPlatform()){const {events}=await api('/api/admin/audit');if(version!==rendering||viewer!==state.user?.id)return;$('#audit').innerHTML=events.map(e=>`<article class="card"><div class="row-top"><strong>${esc(e.action.replaceAll('_',' '))}</strong><time>${esc(new Date(e.at).toLocaleString())}</time></div><p class="user-meta">Actor: ${esc(e.actor_id)} · Account / institution: ${esc(e.target_id)}</p><small>${esc(e.details)}</small></article>`).join('');}
+ if(!isPlatform())return;
+ const {events}=await api('/api/admin/audit');if(!isCurrent())return;
+ if(owner!==auditPageOwner){auditPage=0;auditPageOwner=owner;}
+ const pageSize=10,pageCount=Math.max(1,Math.ceil(events.length/pageSize));auditPage=Math.min(Math.max(0,auditPage),pageCount-1);
+ function draw(){
+  if(!isCurrent()||!isPlatform())return;
+  const start=auditPage*pageSize,visible=events.slice(start,start+pageSize);
+  $('#audit').innerHTML=visible.map(e=>{
+   const date=new Date(e.at),valid=!Number.isNaN(date.getTime()),when=valid?date.toLocaleString():String(e.at||'Time not recorded');
+   const details=typeof e.details==='string'?e.details:e.details==null?'':JSON.stringify(e.details);
+   return `<li class="audit-row"><article><div class="audit-row-heading"><h3>${esc(String(e.action||'Action not recorded').replaceAll('_',' '))}</h3><time${valid?' datetime="'+esc(date.toISOString())+'"':''}>${esc(when)}</time></div><dl class="audit-event-meta"><div><dt>Actor</dt><dd>${esc(e.actor_id||'Not recorded')}</dd></div><div><dt>Account / institution</dt><dd>${esc(e.target_id||'Not recorded')}</dd></div></dl>${details?`<details class="audit-event-details"><summary>Event details</summary><p>${esc(details)}</p></details>`:''}</article></li>`;
+  }).join('');
+  $('#audit-page-status').textContent=events.length?`${start+1}–${Math.min(start+pageSize,events.length)} of ${events.length} fetched events`:'0 fetched events';
+  $('#audit-page-position').textContent=events.length?`Page ${auditPage+1} of ${pageCount}`:'No pages to show';
+  $('#audit-empty').hidden=events.length>0;$('#audit-prev').disabled=auditPage===0;$('#audit-next').disabled=auditPage>=pageCount-1;
+ }
+ $('#audit-prev').onclick=()=>{if(!isCurrent()||!isPlatform())return;if(auditPage>0){auditPage--;draw();}};
+ $('#audit-next').onclick=()=>{if(!isCurrent()||!isPlatform())return;if(auditPage<pageCount-1){auditPage++;draw();}};
+ draw();
 }
 async function usersPage(version=rendering){
  const viewer=state.user?.id;

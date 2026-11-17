@@ -814,6 +814,45 @@ class Service:
                     result['leaves']=instance_identity.decorate(result['leaves'],result['instance_metadata'])
         return result
 
+    def capture_date(self,id,new_date,expected_date):
+        """Correct an unapproved capture date without rebuilding scientific state."""
+        table=self.db.analyses
+        with self.db.engine.begin() as conn:
+            # Match the existing draft/approval write-lock pattern. A no-op
+            # date write serializes local edits without changing review status.
+            conn.execute(update(table).where(table.c.id==id,
+                table.c.status.in_(['ANALYZED','DRAFT']),table.c.date==expected_date).values(date=expected_date))
+            row=self.db.one(table,id,conn)
+            if row['status'] not in ('ANALYZED','DRAFT'):
+                raise Conflict('Only an unapproved analyzed photo can change capture date')
+            # Retrying a lost successful response must not append another audit
+            # event or fail against the caller's previous expected date.
+            if row['date']!=new_date:
+                if row['date']!=expected_date:
+                    raise Conflict('Capture date changed in another request. Reopen the review and retry.')
+                stored=row['payload']
+                audit=[*stored.get('capture_date_edits',[]),
+                    {'from':row['date'].isoformat(),'to':new_date.isoformat(),'timestamp':stamp()}]
+                changed=conn.execute(update(table).where(table.c.id==id,
+                    table.c.status==row['status'],table.c.date==expected_date).values(
+                        date=new_date,payload={**stored,'capture_date_edits':audit}))
+                if changed.rowcount!=1:
+                    raise Conflict('This review changed in another request. Reopen it before correcting the date.')
+                measurements=self.db.measurements
+                if self.settings.firestore_project:
+                    # The adapter already reserves this exact unique document
+                    # atomically when approving. Reading its absence in this
+                    # transaction also detects a concurrent target-date approval.
+                    reservation=json.dumps([measurements.name,['profile_id','date'],
+                        [row['profile_id'],new_date.isoformat()]],separators=(',',':'))
+                    occupied=conn.raw('uniques',hashlib.sha256(reservation.encode()).hexdigest()) is not None
+                else:
+                    occupied=conn.execute(select(measurements).where(
+                        measurements.c.profile_id==row['profile_id'],measurements.c.date==new_date)).mappings().first() is not None
+                if occupied:
+                    raise Conflict('A measurement is already approved for this plant on that date. Choose another capture date.')
+        return self.analysis(id)
+
     def draft(self,id,payload):
         table=self.db.analyses
         with self.db.engine.begin() as conn:
